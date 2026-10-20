@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <g transform="translate(32 47) scale(1.7) translate(-160 -150)">
+    <ellipse cx="161" cy="152.6" rx="13" ry="3.2" fill="#132019" opacity="0.5"/>
+    <g transform="rotate(18 160 150)">
+      <rect x="149" y="148" width="22" height="4" rx="2" fill="#5a3f2a"/>
+      <rect x="150" y="148.3" width="20" height="1.2" rx="0.6" fill="#6b4630"/>
+      <circle cx="169.4" cy="150" r="1.5" fill="#d8c59c" opacity="0.4"/>
+      <circle cx="150.6" cy="150" r="1.5" fill="#3a2a20"/>
+    </g>
+    <g transform="rotate(-18 160 150)">
+      <rect x="149" y="148" width="22" height="4" rx="2" fill="#6b4630"/>
+      <rect x="150" y="148.3" width="20" height="1.2" rx="0.6" fill="#7a5230"/>
+      <circle cx="150.6" cy="150" r="1.5" fill="#d8c59c" opacity="0.45"/>
+      <circle cx="169.4" cy="150" r="1.5" fill="#3a2a20"/>
+    </g>
+    <ellipse cx="160" cy="150.4" rx="6.5" ry="2.4" fill="#ff8a3d" opacity="0.6"/>
+    <ellipse cx="160" cy="150.4" rx="3.6" ry="1.4" fill="#ffcf7a" opacity="0.75"/>
+    <path d="M160 151 C 153 143, 157 136, 160 128 C 163 136, 168 143, 160 151 Z" fill="#ff8a3d" transform="translate(160 151) scale(1.15) translate(-160 -151)"/>
+    <path d="M157 149.5 C 153 146.5, 154.2 142.4, 155.4 139.6 C 156.6 143.4, 159.2 145.4, 157 149.5 Z" fill="#ff8a3d"/>
+    <path d="M163.4 149.4 C 166.6 147, 166 143.6, 165.2 141.2 C 164.4 144.4, 162.4 146, 163.4 149.4 Z" fill="#ff8a3d"/>
+    <path d="M160 151 C 153 143, 157 136, 160 128 C 163 136, 168 143, 160 151 Z" fill="#ffb547"/>
+    <path d="M160 151 C 153 143, 157 136, 160 128 C 163 136, 168 143, 160 151 Z" fill="#ffcf7a" transform="translate(160 151) scale(0.72) translate(-160 -151)"/>
+    <path d="M160 151 C 157 146, 158.5 141, 160 137 C 161.5 141, 164 146, 160 151 Z" fill="#fff1b8"/>
+    <circle cx="156.4" cy="127" r="0.55" fill="#ffcf7a"/>
+    <circle cx="163.6" cy="125" r="0.45" fill="#ffb547"/>
+    <circle cx="166" cy="131.5" r="0.4" fill="#ffcf7a" opacity="0.8"/>
+  </g>
+</svg>

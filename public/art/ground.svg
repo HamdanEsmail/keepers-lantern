@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <radialGradient id="dk"><stop offset="0" stop-color="#24372d" stop-opacity="0.5"/><stop offset="0.6" stop-color="#24372d" stop-opacity="0.22"/><stop offset="1" stop-color="#24372d" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lt"><stop offset="0" stop-color="#4c6e57" stop-opacity="0.75"/><stop offset="0.6" stop-color="#4c6e57" stop-opacity="0.35"/><stop offset="1" stop-color="#4c6e57" stop-opacity="0"/></radialGradient>
+    <g id="tuft" fill="none" stroke-linecap="round" stroke-width="1.1">
+      <path d="M0 0 L-1.8 -3.6 M0 0 L0.3 -4.6 M0 0 L2 -3.2"/>
+    </g>
+    <g id="tile">
+      <ellipse cx="62" cy="68" rx="74" ry="46" fill="url(#dk)"/>
+      <ellipse cx="192" cy="196" rx="64" ry="40" fill="url(#dk)"/>
+      <ellipse cx="206" cy="36" rx="44" ry="30" fill="url(#dk)"/>
+      <ellipse cx="16" cy="206" rx="42" ry="30" fill="url(#dk)"/>
+      <ellipse cx="150" cy="114" rx="68" ry="40" fill="url(#lt)"/>
+      <ellipse cx="44" cy="152" rx="46" ry="30" fill="url(#lt)"/>
+      <ellipse cx="236" cy="128" rx="40" ry="28" fill="url(#lt)"/>
+      <ellipse cx="112" cy="236" rx="52" ry="30" fill="url(#lt)"/>
+      <ellipse cx="120" cy="10" rx="36" ry="20" fill="url(#lt)"/>
+      <g stroke="#5f9466" opacity="0.55">
+        <use xlink:href="#tuft" x="30" y="24"/>
+        <use xlink:href="#tuft" x="96" y="52"/>
+        <use xlink:href="#tuft" x="168" y="30"/>
+        <use xlink:href="#tuft" x="226" y="78"/>
+        <use xlink:href="#tuft" x="140" y="98"/>
+        <use xlink:href="#tuft" x="58" y="132"/>
+        <use xlink:href="#tuft" x="196" y="140"/>
+        <use xlink:href="#tuft" x="118" y="168"/>
+        <use xlink:href="#tuft" x="22" y="186"/>
+        <use xlink:href="#tuft" x="84" y="222"/>
+        <use xlink:href="#tuft" x="170" y="232"/>
+        <use xlink:href="#tuft" x="240" y="204"/>
+        <use xlink:href="#tuft" x="252" y="20"/>
+        <use xlink:href="#tuft" x="4" y="98"/>
+      </g>
+      <g stroke="#24372d" opacity="0.5">
+        <use xlink:href="#tuft" x="70" y="86"/>
+        <use xlink:href="#tuft" x="186" y="64"/>
+        <use xlink:href="#tuft" x="128" y="136"/>
+        <use xlink:href="#tuft" x="40" y="244"/>
+        <use xlink:href="#tuft" x="214" y="176"/>
+        <use xlink:href="#tuft" x="150" y="200"/>
+        <use xlink:href="#tuft" x="8" y="56"/>
+        <use xlink:href="#tuft" x="100" y="2"/>
+      </g>
+      <g fill="#24372d" opacity="0.45">
+        <circle cx="48" cy="38" r="1"/>
+        <circle cx="134" cy="72" r="0.9"/>
+        <circle cx="212" cy="112" r="1.1"/>
+        <circle cx="90" cy="186" r="1"/>
+        <circle cx="178" cy="252" r="0.9"/>
+        <circle cx="250" cy="160" r="1"/>
+      </g>
+      <g fill="#8a8f86" opacity="0.35">
+        <ellipse cx="158" cy="156" rx="1.6" ry="1.1"/>
+        <ellipse cx="34" cy="108" rx="1.4" ry="1"/>
+        <ellipse cx="226" cy="236" rx="1.5" ry="1"/>
+      </g>
+    </g>
+  </defs>
+  <rect x="0" y="0" width="256" height="256" fill="#3f5c4b"/>
+  <use xlink:href="#tile" x="-256" y="-256"/>
+  <use xlink:href="#tile" x="0" y="-256"/>
+  <use xlink:href="#tile" x="256" y="-256"/>
+  <use xlink:href="#tile" x="-256" y="0"/>
+  <use xlink:href="#tile" x="0" y="0"/>
+  <use xlink:href="#tile" x="256" y="0"/>
+  <use xlink:href="#tile" x="-256" y="256"/>
+  <use xlink:href="#tile" x="0" y="256"/>
+  <use xlink:href="#tile" x="256" y="256"/>
+</svg>

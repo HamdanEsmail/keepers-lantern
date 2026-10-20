@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e09a62"/>
+      <stop offset="1" stop-color="#b8653c"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(60 18) scale(2.4) translate(-205 -106)">
+    <ellipse cx="207.5" cy="142.4" rx="22.5" ry="4" fill="#132019" opacity="0.5"/>
+    <polygon points="183,142 205,106 227,142" fill="url(#tg)"/>
+    <polygon points="205,106 191.5,142 193.4,142" fill="#b8653c" opacity="0.4"/>
+    <polygon points="205,106 198,142 199.2,142" fill="#b8653c" opacity="0.25"/>
+    <polygon points="205,106 184.6,139.4 186.4,139.4" fill="#f3e7c9" opacity="0.15"/>
+    <polygon points="205,106 227,142 213,142" fill="#94502f"/>
+    <polygon points="205,106 220.5,131.4 218.6,131.4" fill="#132019" opacity="0.15"/>
+    <polygon points="205,129 201,142 198.4,142" fill="#b8653c"/>
+    <polygon points="205,129 209,142 210.8,142" fill="#94502f"/>
+    <polygon points="201,142 205,129 209,142" fill="#3a2a20"/>
+    <polygon points="202.6,142 205,134 207.4,142" fill="#24372d" opacity="0.6"/>
+    <rect x="183.6" y="141.2" width="43" height="0.8" fill="#94502f" opacity="0.45"/>
+    <rect x="204.3" y="102.6" width="1.4" height="5.4" rx="0.7" fill="#5a3f2a" transform="rotate(-18 205 106)"/>
+    <rect x="204.3" y="102.6" width="1.4" height="5.4" rx="0.7" fill="#6b4630" transform="rotate(18 205 106)"/>
+    <ellipse cx="181.6" cy="142.6" rx="1" ry="0.6" fill="#5a3f2a"/>
+    <ellipse cx="228.4" cy="142.6" rx="1" ry="0.6" fill="#5a3f2a"/>
+  </g>
+</svg>
