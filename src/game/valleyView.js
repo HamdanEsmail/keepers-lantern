@@ -1,0 +1,128 @@
+import { makeRng, randRange } from '../logic/rng.js';
+import { WORLD, CAMP, BEACON, RINGS, distance } from '../logic/world.js';
+import { ITEMS } from '../data/items.js';
+
+// Past this distance from camp the forest is too thick to walk through
+const WALL_RADIUS = RINGS.deep + 50;
+
+const DEPTH = { ground: -100, shade: -90, stream: -80, wall: -70 };
+
+const WALL_TINTS = [0xb8c4bb, 0x8a978e, 0x66726a];
+
+export function drawValley(scene, valley) {
+    const rng = makeRng(valley.seed + 1000);
+    drawGround(scene, rng);
+    drawStream(scene, valley.stream);
+    drawWallShadow(scene);
+
+    // Everything solid goes in here, so one collider can stop the player on all of it
+    const solids = scene.physics.add.staticGroup();
+
+    for (const t of valley.trees) {
+        addTree(scene, solids, t.x, t.y, t.r, t.variant);
+    }
+    addWallTrees(scene, solids, rng);
+
+    // Camp: the tent, and the fire right in the middle.
+    const tentX = CAMP.x - 90;
+    const tentY = CAMP.y - 20;
+    scene.add.image(tentX, tentY, 'tent').setOrigin(0.5, 0.88).setDepth(tentY);
+    addSolid(scene, solids, tentX, tentY - 18, 38);
+    scene.add.image(CAMP.x, CAMP.y, 'fire').setOrigin(0.5, 0.8).setDepth(CAMP.y);
+    addSolid(scene, solids, CAMP.x, CAMP.y, 16);
+
+    // The father's beacon, still dark.
+    const beacon = scene.add.image(BEACON.x, BEACON.y, 'beacon-dark').setOrigin(0.5, 0.87).setDepth(BEACON.y);
+    addSolid(scene, solids, BEACON.x, BEACON.y - 12, 34);
+
+    // Things you can Pick up. Each map lets later code find a sprite by its id.
+    const nodeSprites = new Map();
+    for (const n of valley.nodes) {
+        nodeSprites.set(n.id, addThing(scene, n.x, n.y, ITEMS[n.kind].art));
+    }
+    const lensSprites = new Map();
+    for (const l of valley.lenses) {
+        lensSprites.set(l.index, addThing(scene, l.x, l.y, 'lens'));
+    }
+    const pageSprites = new Map();
+    for (const p of valley.pages) {
+        pageSprites.set(p.id, addThing(scene, p.x, p.y, 'page'));
+    }
+    return { solids, nodeSprites, lensSprites, pageSprites, beacon};
+
+}
+
+function drawGround(scene, rng) {
+    //One 256px tile of grass, repeated across the whole world.
+    scene.add.tileSprite(0, 0, WORLD.width, WORLD.height, 'ground').setOrigin(0).setDepth(DEPTH.ground);
+
+    //Darker Patches over the deep woods.
+    const shade = scene.add.graphics().setDepth(DEPTH.shade);
+    shade.fillStyle(0x2c5139, 0.35);
+    for (let i = 0; i < 70; i++) {
+        const angle = rng() * Math.PI * 2;
+        const r = randRange(rng, RINGS.pinewood, RINGS.deep);
+        shade.fillEllipse(
+            CAMP.x + Math.cos(angle) * r,
+            CAMP.y + Math.sin(angle) * r,
+            randRange(rng, 160, 320),
+            randRange(rng, 90, 180),
+        );
+    }
+}
+
+function drawStream(scene, points) {
+    const water = scene.add.graphics().setDepth(DEPTH.stream);
+    water.lineStyle(34, 0x6fb3c9, 0.8);
+    water.strokePoints(points);
+    // A thin pale line along the middle, where the water catches the light
+    water.lineStyle(6, 0xcfe8ee, 0.25);
+    water.strokePoints(points);
+}
+
+// Darkness past the edge of the valley.
+function drawWallShadow(scene) {
+    const g = scene.add.graphics().setDepth(DEPTH.wall);
+    // One very thick ring covers everything outside the valley, all the way to the corners.
+    g.lineStyle(1600, 0x132019, 1);
+    g.strokeCircle(CAMP.x, CAMP.y, WALL_RADIUS + 800);
+    // Two Softer rings insides it, so the dark fades in instead of starting at a hard line.
+    g.lineStyle(80, 0x132019, 0.5);
+    g.strokeCircle(CAMP.x, CAMP.y, WALL_RADIUS - 40);
+    g.lineStyle(80, 0x132019, 0.25);
+    g.strokeCircle(CAMP.x, CAMP.y, WALL_RADIUS - 120);
+}
+
+// Three rows of trees packed tight around the valley, so there's no way out.
+function addWallTrees(scene, solids, rng) {
+    const rows = [WALL_RADIUS + 10, WALL_RADIUS + 70, WALL_RADIUS + 130];
+    rows.forEach((radius, row) => {
+        const count = Math.round((Math.PI * 2 * radius) / 56);
+        for (let i = 0; i < count; i++) {
+            // Every other row is shifted half a step, like bricks in a wall
+            const angle = ((i + (row % 2) * 0.5) / count) * Math.PI * 2;
+            const x = CAMP.x + Math.cos(angle) * radius;
+            const y = CAMP.y + Math.sin(angle) * radius;
+            if (distance(x, y, BEACON.x, BEACON.y) < BEACON.clearRadius) continue;
+            const tree = addTree(scene, solids, x, y, 26, 1 + Math.floor(rng() * 3));
+            tree.setTint(WALL_TINTS[row]);
+        }
+    });
+}
+
+function addTree(scene, solids, x, y, r, variant) {
+    addSolid(scene, solids, x, y, r);
+    return scene.add.image(x, y, `tree-${variant}`).setOrigin(0.5, 0.84).setDepth(y);
+}
+
+// An Invisible circle that stops you near the tree trunk
+function addSolid(scene, solids, x, y, r) {
+    const radius = Math.round(r);
+    const block = scene.add.zone(x, y, radius * 2, radius * 2);
+    solids.add(block);
+    block.body.setCircle(radius);
+}
+
+function addThing(scene, x, y, key) {
+    return scene.add.image(x, y, key).setOrigin(0.5, 0.75).setDepth(y);
+}
