@@ -39,9 +39,12 @@ export class HudScene extends Phaser.Scene {
         this.promptText = this.add.text(640, 668, '', this.textStyle(18)).setOrigin(0.5);
 
         // Toasts appear just above the prompt and fade away.
+        // If one arrives while another is showing, it waits its turn.
         this.toastText = this.add.text(640, 612, '', this.textStyle(20, { fontStyle: 'italic' }))
             .setOrigin(0.5)
             .setAlpha(0);
+        this.toastQueue = [];
+        this.toastBusy = false;
 
         const valley = this.scene.get('valley');
         valley.events.on('hud', this.onHud, this);
@@ -132,14 +135,35 @@ export class HudScene extends Phaser.Scene {
     }
 
     onToast(message) {
+        // The same message twice in a row says nothing new.
+        if (message === this.toastText.text && this.toastBusy) return;
+        if (this.toastQueue.includes(message)) return;
+        if (this.toastBusy) {
+            this.toastQueue.push(message);
+            return;
+        }
+        this.showToast(message);
+    }
+
+    // Each toast gets at least 1.5 s on screen. Then the next one in the queue,
+    // or, if there isn't one, it lingers a little and fades.
+    showToast(message) {
+        this.toastBusy = true;
         this.tweens.killTweensOf(this.toastText);
         this.toastText.setText(message).setAlpha(1).setY(612);
-        this.tweens.add({
-            targets: this.toastText,
-            alpha: 0,
-            y: 600,
-            delay: 2000,
-            duration: 600,
+        this.time.delayedCall(1500, () => {
+            this.toastBusy = false;
+            if (this.toastQueue.length) {
+                this.showToast(this.toastQueue.shift());
+                return;
+            }
+            this.tweens.add({
+                targets: this.toastText,
+                alpha: 0,
+                y: 600,
+                delay: 700,
+                duration: 600,
+            });
         });
     }
 }

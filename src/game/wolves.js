@@ -99,6 +99,11 @@ export class WolfPack {
         }
     }
 
+    // How far away the nearest wolf is (Infinity when there are none).
+    closest() {
+        return Math.min(...this.wolves.map((w) => w.dist));
+    }
+
     // Where each wolf is, for testing.
     distances() {
         return this.wolves.map((w) => Math.round(w.dist));

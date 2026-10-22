@@ -1,6 +1,8 @@
 // Your progress between runs: what's in the stash, what you've built, what you've found.
 // For now it only lives in memory. Lesson 10 adds loading and saving it in the browser.
 
+import { newStats } from './stats.js';
+
 export const SAVE_VERSION = 1;
 
 export function newSave(seed) {
@@ -13,5 +15,6 @@ export function newSave(seed) {
         lensDelivered: [],
         pagesFound: [],
         finished: false,
+        stats: newStats(),
     };
 }

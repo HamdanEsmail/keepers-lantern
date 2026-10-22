@@ -7,6 +7,7 @@ import { readMove, inStream } from '../logic/move.js';
 import { addToPack, capacity } from '../logic/pack.js';
 import { newSave } from '../logic/save.js';
 import { afterRun } from '../logic/run.js';
+import { newStats, newRunSummary, newMilestones, earn, milestoneLabel, deeper } from '../logic/stats.js';
 import { phaseAt, darknessAt } from '../logic/clock.js';
 import { tickSurvival, startMeters, maxFuel, eat, foodValue, lightRadius, isSpent } from '../logic/survival.js';
 import { Darkness } from '../game/darkness.js';
@@ -69,6 +70,12 @@ export class ValleyScene extends Phaser.Scene {
         this.meters = startMeters(this.save.upgrades);
         this.ending = false;
         this.warned = { low: false, dim: false };
+
+        // What happens this run, for the stats and milestones.
+        if (!this.save.stats) this.save = { ...this.save, stats: newStats() };
+        this.summary = newRunSummary();
+        this.milestoneClock = 0;
+        this.rushed = false;
 
         // Start beside the fire, not in it: the fire is solid.
         this.physics.world.setBounds(0, 0, WORLD.width, WORLD.height);
@@ -137,6 +144,9 @@ export class ValleyScene extends Phaser.Scene {
         this.updateNight(dt, phase);
         if (!this.ending && isSpent(this.meters)) this.endRun('spent');
 
+        this.summary.deepest = deeper(this.summary.deepest, ringAt(this.player.x, this.player.y));
+        this.updateMilestones(dt);
+
         this.emitHud(this.ending ? null : prompt);
         if (import.meta.env.DEV) reportDev(this);
     }
@@ -178,6 +188,10 @@ export class ValleyScene extends Phaser.Scene {
             const ring = ringAt(this.player.x, this.player.y);
             this.wolves.spawn(ring === 'deep' || ring === 'outside' ? 3 : 2, this.player);
         }
+        if (phase === 'night') {
+            this.summary.sawNight = true;
+            if (!atCamp) this.summary.nightTime += dt;
+        }
         if (!this.wolves.active) return;
 
         const caught = this.wolves.update(dt, this.player, {
@@ -185,7 +199,29 @@ export class ValleyScene extends Phaser.Scene {
             dim,
             playerAtCamp: atCamp,
         });
-        if (caught) this.endRun('caught');
+        if (caught) {
+            this.endRun('caught');
+            return;
+        }
+
+        // A close call: the wolves were rushing you, and you made it back to the fire.
+        if (dim && !atCamp && this.wolves.closest() < this.lightR) this.rushed = true;
+        if (atCamp && this.rushed) {
+            this.rushed = false;
+            this.summary.closeCalls += 1;
+            this.toast('You made it. The wolves fall back.');
+        }
+    }
+
+    // Twice a second, see if you've earned anything new.
+    updateMilestones(dt) {
+        this.milestoneClock += dt;
+        if (this.milestoneClock < 0.5 || this.ending) return;
+        this.milestoneClock = 0;
+        const ids = newMilestones(this.save.stats, this.summary);
+        if (!ids.length) return;
+        this.save = { ...this.save, stats: earn(this.save.stats, ids) };
+        for (const id of ids) this.toast(`Milestone · ${milestoneLabel(id)}`);
     }
 
     // Losing: the pack is gone, and you wake by the fire in a new valley.
@@ -195,7 +231,7 @@ export class ValleyScene extends Phaser.Scene {
         let message = END_TOASTS.caught;
         if (reason === 'spent') message = this.meters.food <= 0 ? END_TOASTS.hunger : END_TOASTS.cold;
 
-        this.save = afterRun(this.save, reason, this.pack);
+        this.save = afterRun(this.save, reason, this.pack, this.summary);
         this.pack = [];
         this.toast(message);
 
@@ -256,6 +292,7 @@ export class ValleyScene extends Phaser.Scene {
                 return;
             }
             this.meters = eat(this.meters, node.kind);
+            this.summary.eaten += 1;
             this.removeNode(node, `+${foodValue(node.kind)} Food`);
             return;
         }
@@ -266,6 +303,8 @@ export class ValleyScene extends Phaser.Scene {
             return;
         }
         this.pack = result.pack;
+        this.summary.gathered += 1;
+        if (this.pack.length >= capacity(this.save.upgrades)) this.summary.packFilled = true;
         this.removeNode(node, `+1 ${item.label}`);
     }
 

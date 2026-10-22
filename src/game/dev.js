@@ -114,6 +114,8 @@ export function reportDev(scene) {
         wolves: scene.wolves.distances(),
         run: scene.save.run,
         ending: scene.ending,
+        summary: scene.summary,
+        stats: scene.save.stats,
         pack: scene.pack,
         toast: scene.devToast ?? null,
         target: scene.interactions.target?.id ?? null,
