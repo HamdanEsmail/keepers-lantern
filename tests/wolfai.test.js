@@ -20,6 +20,13 @@ it('picks where to stand: camp beats a dim lantern', () => {
     expect(wolfTarget(ctx({ dim: true, playerAtCamp: true }))).toBe(CAMP.safeRadius + 200);
 });
 
+it('keeps back from a torch you stand by, and never rushes there', () => {
+    expect(wolfTarget(ctx({ shelter: 250 }))).toBe(290);
+    expect(wolfTarget(ctx({ shelter: 400, dim: true }))).toBe(400);
+    expect(wolfTarget(ctx({ shelter: 400, playerAtCamp: true }))).toBe(CAMP.safeRadius + 200);
+    expect(isCaught(run(ctx({ shelter: 220, dim: true, lightRadius: 80 }), 30))).toBe(false);
+});
+
 it('backs off again when the light grows', () => {
     const close = run(ctx({ lightRadius: 100 }), 20);
     expect(run(ctx({ lightRadius: 220 }), 20, close).dist).toBeCloseTo(290, 0);

@@ -10,8 +10,10 @@ const SPEED = 60; // pixels per second, in or out
 const EDGE_GAP = 70; // how far outside the light they wait
 
 // Where a wolf wants to be, as a distance from you.
-export function wolfTarget({ lightRadius, dim, playerAtCamp }) {
+// shelter (optional) is how far a torch you're standing by keeps them back (see torches.js).
+export function wolfTarget({ lightRadius, dim, playerAtCamp, shelter = 0 }) {
     if (playerAtCamp) return CAMP.safeRadius + 200;
+    if (shelter) return Math.max(shelter, lightRadius + EDGE_GAP);
     if (dim) return 0;
     return lightRadius + EDGE_GAP;
 }

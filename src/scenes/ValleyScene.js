@@ -4,7 +4,8 @@ import { drawValley } from '../game/valleyView.js';
 import { createPlayer, updatePlayer } from '../game/player.js';
 import { Interactions } from '../game/interactions.js';
 import { readMove, inStream, speedFor } from '../logic/move.js';
-import { addToPack, capacity } from '../logic/pack.js';
+import { addToPack, takeFromPack, capacity } from '../logic/pack.js';
+import { plantTorch, torchRadius, liveTorches, canPlant, inTorchLight, shelterDistance } from '../logic/torches.js';
 import { newSave } from '../logic/save.js';
 import { afterRun } from '../logic/run.js';
 import { newStats, newRunSummary, newMilestones, earn, milestoneLabel, deeper } from '../logic/stats.js';
@@ -83,6 +84,9 @@ export class ValleyScene extends Phaser.Scene {
         this.ending = false;
         this.warned = { low: false, dim: false };
         this.flare = 0;
+        // Planted torches (plain data, see torches.js) and the picture for each one.
+        this.torches = [];
+        this.torchViews = new Map();
 
         // What happens this run, for the stats and milestones.
         if (!this.save.stats) this.save = { ...this.save, stats: newStats() };
@@ -95,7 +99,7 @@ export class ValleyScene extends Phaser.Scene {
         this.player = createPlayer(this, CAMP.x + 50, CAMP.y + 40);
         this.physics.add.collider(this.player, this.view.solids);
 
-        this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,E,SHIFT,SPACE');
+        this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,E,SHIFT,SPACE,T');
 
         this.interactions = new Interactions(this);
         for (const node of this.valley.nodes) this.addNode(node);
@@ -151,8 +155,14 @@ export class ValleyScene extends Phaser.Scene {
         const sprinting = moving && (this.dev?.shift ?? this.keys.SHIFT.isDown);
         updatePlayer(this.player, dir, speedFor({ inStream: this.inStream(), sprinting }));
 
-        // Space flares the lantern, but only while it's lit (dusk and night, away from camp).
-        const lit = (phase === 'dusk' || phase === 'night') && !this.nearFire();
+        // T plants a torch from your pack.
+        const plantPressed = this.dev?.tPressed || Phaser.Input.Keyboard.JustDown(this.keys.T);
+        if (plantPressed) this.plantTorchHere();
+        this.updateTorches();
+        const sheltered = inTorchLight(this.torches, this.player.x, this.player.y, this.t);
+
+        // Space flares the lantern, but only while it's lit (dusk and night, away from fire and torches).
+        const lit = (phase === 'dusk' || phase === 'night') && !this.nearFire() && !sheltered;
         const flaring = lit && this.meters.fuel > 0 && (this.dev?.space ?? this.keys.SPACE.isDown);
         this.flare = stepFlare(this.flare, dt, flaring);
 
@@ -163,6 +173,7 @@ export class ValleyScene extends Phaser.Scene {
             upgrades,
             sprinting,
             flare: this.flare,
+            sheltered,
         });
 
         const eDown = this.dev?.eDown ?? this.keys.E.isDown;
@@ -198,9 +209,11 @@ export class ValleyScene extends Phaser.Scene {
         const fuelShare = this.meters.fuel / maxFuel(this.save.upgrades);
         const dim = fuelShare < DIM_AT;
         const atCamp = this.nearFire();
+        const { x, y } = this.player;
+        const sheltered = inTorchLight(this.torches, x, y, this.t);
 
         // You always get told before the wolves stop waiting.
-        if ((phase === 'dusk' || phase === 'night') && !atCamp) {
+        if ((phase === 'dusk' || phase === 'night') && !atCamp && !sheltered) {
             if (!this.warned.low && fuelShare < LOW_AT) {
                 this.warned.low = true;
                 this.toast('Your lantern is burning low. Head back to camp.');
@@ -213,8 +226,9 @@ export class ValleyScene extends Phaser.Scene {
 
         if (phase === 'night' && !this.wolves.active) {
             // More of them, the further out you are when night falls.
-            const ring = ringAt(this.player.x, this.player.y);
+            const ring = ringAt(x, y);
             this.wolves.spawn(ring === 'deep' || ring === 'outside' ? 3 : 2, this.player);
+            if (this.pack.includes('torch')) this.toast('Press T to plant a torch.');
         }
         if (phase === 'night') {
             this.summary.sawNight = true;
@@ -223,19 +237,22 @@ export class ValleyScene extends Phaser.Scene {
         if (!this.wolves.active) return;
 
         // A flare holds them off even when the lantern is low: they back away from the bigger light.
+        // So does a torch you're standing by.
         const caught = this.wolves.update(dt, this.player, {
             lightRadius: this.lightR,
             dim: dim && this.flare < 0.5,
             playerAtCamp: atCamp,
+            shelter: shelterDistance(this.torches, x, y, this.t),
         });
         if (caught) {
             this.endRun('caught');
             return;
         }
 
-        // A close call: the wolves were rushing you, and you made it back to the fire.
-        if (dim && !atCamp && this.wolves.closest() < this.lightR) this.rushed = true;
-        if (atCamp && this.rushed) {
+        // A close call: the wolves were rushing you, and you made it to the fire or a torch.
+        const safe = atCamp || sheltered;
+        if (dim && !safe && this.wolves.closest() < this.lightR) this.rushed = true;
+        if (safe && this.rushed) {
             this.rushed = false;
             this.summary.closeCalls += 1;
             this.toast('You made it. The wolves fall back.');
@@ -282,11 +299,66 @@ export class ValleyScene extends Phaser.Scene {
         this.lightR = flaredRadius(lightRadius(this.meters.fuel, this.save.upgrades), this.flare);
         const lanternFlicker = 1 + 0.02 * Math.sin(t * 9) + 0.012 * Math.sin(t * 23);
         const fireFlicker = 1 + 0.03 * Math.sin(t * 7 + 1) + 0.015 * Math.sin(t * 17);
+        // Each torch flickers on its own beat.
+        const torchLights = this.torches.map((torch) => ({
+            x: torch.x,
+            y: torch.y - 30,
+            r: torchRadius(torch, t) * (1 + 0.035 * Math.sin(t * 8 + torch.lit)),
+            warm: 0.9,
+        }));
         this.darkness.update(darknessAt(t), [
             // The lantern is carried at chest height, not at the feet.
             { x: this.player.x, y: this.player.y - 20, r: this.lightR * lanternFlicker, warm: 1 + this.flare },
             { x: CAMP.x, y: CAMP.y - 10, r: CAMP_LIGHT * fireFlicker, warm: 1 },
+            ...torchLights,
         ]);
+    }
+
+    // Plant a torch from the pack, just in front of you.
+    plantTorchHere() {
+        if (!this.pack.includes('torch')) {
+            this.toast('You have no torches.');
+            return;
+        }
+        const side = this.player.flipX ? -1 : 1;
+        const x = this.player.x + 22 * side;
+        const y = this.player.y + 4;
+        if (!canPlant(this.torches, x, y)) {
+            this.toast(this.nearFire() ? 'The fire already lights the camp.' : "There's a torch here already.");
+            return;
+        }
+        this.pack = takeFromPack(this.pack, 'torch').pack;
+        this.torches = plantTorch(this.torches, x, y, this.t);
+        const torch = this.torches[this.torches.length - 1];
+
+        const sprite = this.add.image(x, y, 'torch-lit').setOrigin(0.5, 0.9).setDepth(y);
+        // The flame wavers a little.
+        this.tweens.add({
+            targets: sprite,
+            scaleY: { from: 0.97, to: 1.04 },
+            duration: 260 + Math.random() * 120,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+        });
+        this.torchViews.set(torch, sprite);
+        if (this.phase === 'dusk' || this.phase === 'night') this.summary.torches += 1;
+        if (this.save.stats.runs < 3) this.toast('Stand in its light: the wolves keep back and your lantern rests.');
+    }
+
+    // Burnt-out torches fade away.
+    updateTorches() {
+        const live = liveTorches(this.torches, this.t);
+        if (live.length === this.torches.length) return;
+        for (const torch of this.torches) {
+            if (live.includes(torch)) continue;
+            const sprite = this.torchViews.get(torch);
+            this.torchViews.delete(torch);
+            if (!sprite) continue;
+            this.tweens.killTweensOf(sprite);
+            this.tweens.add({ targets: sprite, alpha: 0, duration: 800, onComplete: () => sprite.destroy() });
+        }
+        this.torches = live;
     }
 
     // Close enough to the camp fire to warm up. The wolves won't come this close either.

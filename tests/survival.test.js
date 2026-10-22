@@ -71,6 +71,13 @@ it('a full flare makes the light half as big again', () => {
     expect(flaredRadius(220, 1)).toBe(330);
 });
 
+it('a torch rests the lantern and warms you a little', () => {
+    const m = { ...startMeters([]), warmth: 50 };
+    const next = tickSurvival(m, 0.1, env({ sheltered: true }));
+    expect(next.fuel).toBe(100);
+    expect(next.warmth).toBeCloseTo(50.05);
+});
+
 it('clamps big frame gaps (hidden tab)', () => {
     const m = startMeters([]);
     expect(tickSurvival(m, 30, env())).toEqual(tickSurvival(m, 0.1, env()));

@@ -8,4 +8,7 @@ export const ITEMS = {
     mushroom: { label: 'Mushrooms', ring: 'pinewood', gather: 'pack', art: 'mushrooms'},
     fish: { label: 'Fish', ring: 'pinewood', gather: 'eat', art: 'ripple' },
     amber: { label: 'Amber', ring: 'deep', gather: 'pack', art: 'amber'},
+
+    // Things you make rather than find (added by Claude with the torches). They never grow in the valley.
+    torch: { label: 'Torch', ring: null, gather: 'pack', art: 'torch' },
 };

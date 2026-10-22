@@ -11,18 +11,22 @@
 //
 // Keys:
 //   N             jump to dusk, or from dusk to night
+//   U             every upgrade, plus two torches in your pack
 //
 // From the browser console you can also steer the game while it runs:
 //   document.documentElement.dataset.devWalk = '1,0'   walk right ('' to stop)
 //   document.documentElement.dataset.devE = '1'        hold E ('' to let go)
 //   document.documentElement.dataset.devShift = '1'    hold Shift (sprint)
 //   document.documentElement.dataset.devSpace = '1'    hold Space (flare)
+//   document.documentElement.dataset.devT = '1'        press T once (plant a torch)
+//   document.documentElement.dataset.devGrant = '1'    same as the U key
 //   document.documentElement.dataset.devTime = '0.75'  jump to that point in the day
 //   window.dispatchEvent(new Event('dev-step'))        run one second of game time,
 //                                                      even if the tab is hidden
 // After every frame, document.documentElement.dataset.devState holds a summary of the game.
 
 import { DAY_LENGTH, DUSK_AT, NIGHT_AT } from '../logic/clock.js';
+import { capacity } from '../logic/pack.js';
 
 const html = document.documentElement;
 let current = null;
@@ -57,6 +61,8 @@ export function setupDev(scene) {
         if (scene.t < DUSK_AT) scene.t = DUSK_AT;
         else if (scene.t < NIGHT_AT) scene.t = NIGHT_AT;
     });
+    // U gives you every upgrade and two torches, to test things before the camp panel exists.
+    scene.input.keyboard.on('keydown-U', () => grantAll(scene));
 
     // Remember the last message, so a test can read it from devState.
     // Scene events outlive a restart, so stop listening when this valley ends.
@@ -80,6 +86,14 @@ export function setupDev(scene) {
     current = scene;
 }
 
+const ALL_UPGRADES = ['pack', 'lantern', 'coat', 'compass', 'cooking-fire', 'axe', 'fishing-line'];
+
+function grantAll(scene) {
+    scene.save = { ...scene.save, upgrades: [...ALL_UPGRADES] };
+    scene.pack = [...scene.pack, 'torch', 'torch'].slice(0, capacity(ALL_UPGRADES));
+    scene.toast('Dev: every upgrade, and two torches.');
+}
+
 // Called at the start of every frame: fake keys from the console, if any.
 export function readDevInput(scene) {
     const walk = html.dataset.devWalk;
@@ -93,6 +107,13 @@ export function readDevInput(scene) {
     scene.dev.eDown = html.dataset.devE ? true : null;
     scene.dev.shift = html.dataset.devShift ? true : null;
     scene.dev.space = html.dataset.devSpace ? true : null;
+    // One-shot presses: they happen once, then clear themselves.
+    scene.dev.tPressed = Boolean(html.dataset.devT);
+    delete html.dataset.devT;
+    if (html.dataset.devGrant) {
+        delete html.dataset.devGrant;
+        grantAll(scene);
+    }
 
     if (html.dataset.devTime) {
         scene.t = Number(html.dataset.devTime) * DAY_LENGTH;
@@ -116,6 +137,8 @@ export function reportDev(scene) {
         nearFire: scene.nearFire(),
         light: Math.round(scene.lightR),
         flare: round(scene.flare),
+        torches: scene.torches.map((t) => ({ x: Math.round(t.x), y: Math.round(t.y), left: round(t.until - scene.t) })),
+        upgrades: scene.save.upgrades,
         wolves: scene.wolves.distances(),
         run: scene.save.run,
         ending: scene.ending,

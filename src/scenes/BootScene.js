@@ -9,6 +9,7 @@ const ART = {
     tent: 120, fire: 64,
     'beacon-dark': 160, 'beacon-lit': 160,
     player: 48, wolf: 64, 'wolf-lying': 64, arrow: 32,
+    torch: 48, 'torch-lit': 64,
 };
 
 export class BootScene extends Phaser.Scene {

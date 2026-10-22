@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <ellipse cx="24" cy="33" rx="17" ry="5" fill="#132019" opacity="0.5"/>
+  <g transform="rotate(-38 24 26)">
+    <!-- the handle -->
+    <rect x="8" y="24" width="30" height="3.6" rx="1.8" fill="#6b4630"/>
+    <rect x="9" y="24.3" width="28" height="1.2" rx="0.6" fill="#7a5230"/>
+    <circle cx="9.4" cy="25.8" r="1.4" fill="#d8c59c" opacity="0.5"/>
+    <!-- the wrapped, oiled head -->
+    <rect x="31" y="21.4" width="10" height="8.8" rx="3" fill="#8a6a44"/>
+    <rect x="32" y="22.2" width="2" height="7.2" rx="1" fill="#5a3f2a" opacity="0.8"/>
+    <rect x="35.4" y="22" width="2" height="7.6" rx="1" fill="#5a3f2a" opacity="0.8"/>
+    <rect x="38.6" y="22.4" width="1.6" height="6.8" rx="0.8" fill="#5a3f2a" opacity="0.7"/>
+    <rect x="31.6" y="21.8" width="9" height="1.6" rx="0.8" fill="#d8c59c" opacity="0.35"/>
+  </g>
+</svg>

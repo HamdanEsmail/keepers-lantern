@@ -5,6 +5,7 @@ const FOOD_LOSS = 0.2; // per second
 const SPRINT_HUNGER = 3; // running makes you hungry three times as fast
 const WARMTH_LOSS = { dawn: 0.1, day: 0.1, dusk: 0.2, night: 0.3 };
 const FIRE_WARMTH = 5; // per second, near the camp fire
+const TORCH_WARMTH = 0.5; // per second, standing in a torch's light
 const FUEL_BURN = 0.5; // per second, at dusk and night
 const FLARE_BURN = 4; // extra fuel per second at a full flare
 const FLARE_GROWTH = 0.5; // a full flare makes the light this much bigger
@@ -27,7 +28,9 @@ function clamp(value, max) {
 }
 
 // flare (0 to 1) is how hard you're flaring the lantern with Space. See stepFlare.
-export function tickSurvival(meters, dt, { phase, nearFire, upgrades, sprinting = false, flare = 0 }) {
+// sheltered means standing in a torch's light.
+export function tickSurvival(meters, dt, opts) {
+    const { phase, nearFire, upgrades, sprinting = false, flare = 0, sheltered = false } = opts;
     // A hidden tab can leave a huge gap between frames. Don't punish it.
     dt = Math.min(dt, 0.1);
 
@@ -35,12 +38,12 @@ export function tickSurvival(meters, dt, { phase, nearFire, upgrades, sprinting 
     const coldMul = upgrades.includes('coat') ? 0.6 : 1;
 
     const food = meters.food - FOOD_LOSS * hungerMul * dt;
-    const warmth = nearFire
-        ? meters.warmth + FIRE_WARMTH * dt
-        : meters.warmth - WARMTH_LOSS[phase] * coldMul * dt;
+    let warmth = meters.warmth - WARMTH_LOSS[phase] * coldMul * dt;
+    if (sheltered) warmth = meters.warmth + TORCH_WARMTH * dt;
+    if (nearFire) warmth = meters.warmth + FIRE_WARMTH * dt;
 
-    // The lantern is only lit once the light starts going, and rests by the fire.
-    const lit = (phase === 'dusk' || phase === 'night') && !nearFire;
+    // The lantern is only lit once the light starts going, and rests by a fire or a torch.
+    const lit = (phase === 'dusk' || phase === 'night') && !nearFire && !sheltered;
     const fuel = lit ? meters.fuel - (FUEL_BURN + FLARE_BURN * flare) * dt : meters.fuel;
 
     return {
