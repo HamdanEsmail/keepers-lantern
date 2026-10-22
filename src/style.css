@@ -1,0 +1,218 @@
+/* Panels over the game: the camp, and the morning after each run (see ui/overlay.js).
+   The colours are the game's own: night, parchment text, fire and forest. */
+
+#panel {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    box-sizing: border-box;
+    width: min(680px, calc(100vw - 32px));
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(243, 231, 201, 0.25) transparent;
+    padding: 24px 28px 0;
+    background: rgba(10, 18, 14, 0.94);
+    border: 1px solid rgba(243, 231, 201, 0.18);
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    color: #f3e7c9;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 17px;
+    line-height: 1.45;
+}
+
+/* Without this, display rules would win over the hidden attribute. */
+#panel[hidden] {
+    display: none;
+}
+
+#panel h2 {
+    margin: 0 0 14px;
+    font-size: 28px;
+    font-weight: normal;
+    color: #ffcf7a;
+}
+
+#panel h3 {
+    margin: 20px 0 8px;
+    font-size: 13px;
+    font-weight: normal;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #cdbf9f;
+}
+
+#panel p {
+    margin: 0 0 10px;
+}
+
+#panel .note {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border-left: 3px solid #ffcf7a;
+    border-radius: 0 8px 8px 0;
+    background: rgba(255, 207, 122, 0.08);
+    font-style: italic;
+}
+
+#panel .quiet-text {
+    color: #cdbf9f;
+    font-size: 15px;
+}
+
+/* Chips: a little picture and a number, for the stash and for costs. */
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 10px 2px 4px;
+    border-radius: 999px;
+    background: rgba(243, 231, 201, 0.08);
+    font-size: 15px;
+    white-space: nowrap;
+}
+
+.chip img {
+    width: 28px;
+    height: 28px;
+}
+
+/* Not enough of it yet. */
+.chip.short {
+    color: #eba58c;
+    background: rgba(224, 96, 74, 0.14);
+}
+
+/* A card for each upgrade, and for each thing you can make or take. */
+.cards {
+    display: grid;
+    gap: 8px;
+}
+
+.card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(63, 92, 75, 0.35);
+}
+
+.card .about {
+    flex: 1;
+}
+
+.card h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: normal;
+}
+
+.card .about p {
+    margin: 2px 0 0;
+    font-size: 14px;
+    color: #cdbf9f;
+}
+
+.card .side {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.card.owned {
+    background: rgba(63, 92, 75, 0.15);
+}
+
+.card .done {
+    color: #9fd3a6;
+    font-style: italic;
+}
+
+/* Buttons: fire-coloured, or plain ("quiet") for the less important ones. */
+#panel button {
+    font: inherit;
+    font-size: 16px;
+    color: #0a120e;
+    background: #ffcf7a;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 18px;
+    cursor: pointer;
+}
+
+#panel button:hover:not(:disabled) {
+    background: #ffe0a3;
+}
+
+#panel button:focus-visible {
+    outline: 2px solid #f3e7c9;
+    outline-offset: 2px;
+}
+
+#panel button:disabled {
+    background: rgba(243, 231, 201, 0.1);
+    color: rgba(243, 231, 201, 0.4);
+    cursor: default;
+}
+
+#panel button.quiet {
+    background: transparent;
+    color: #f3e7c9;
+    box-shadow: inset 0 0 0 1px rgba(243, 231, 201, 0.35);
+}
+
+#panel button.quiet:hover {
+    background: rgba(243, 231, 201, 0.08);
+}
+
+/* The note and the buttons, stuck to the bottom so they're always in reach. */
+#panel .footer {
+    position: sticky;
+    bottom: 0;
+    margin: 22px -28px 0;
+    padding: 14px 28px 20px;
+    background: rgba(10, 18, 14, 0.98);
+    border-top: 1px solid rgba(243, 231, 201, 0.12);
+}
+
+#panel .choices {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* The numbers at the bottom of the camp, in two columns. */
+#panel .stats {
+    columns: 2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 14px;
+    color: #cdbf9f;
+}
+
+/* On a narrow window, the cost and the button go under the words. */
+@media (max-width: 560px) {
+    .card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .card .side {
+        justify-content: space-between;
+    }
+
+    #panel .stats {
+        columns: 1;
+    }
+}

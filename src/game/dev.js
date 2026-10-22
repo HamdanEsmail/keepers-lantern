@@ -32,6 +32,8 @@
 import { DAY_LENGTH, DUSK_AT, NIGHT_AT } from '../logic/clock.js';
 import { capacity } from '../logic/pack.js';
 import { makeWeather, SKIES, MOONS } from '../logic/weather.js';
+import { UPGRADES } from '../logic/upgrades.js';
+import { isPanelOpen } from '../ui/overlay.js';
 
 const html = document.documentElement;
 let current = null;
@@ -66,7 +68,7 @@ export function setupDev(scene) {
         if (scene.t < DUSK_AT) scene.t = DUSK_AT;
         else if (scene.t < NIGHT_AT) scene.t = NIGHT_AT;
     });
-    // U gives you every upgrade and two torches, to test things before the camp panel exists.
+    // U gives you every upgrade and two torches, to test them without gathering for them first.
     scene.input.keyboard.on('keydown-U', () => grantAll(scene));
 
     // Remember the last message, so a test can read it from devState.
@@ -107,7 +109,7 @@ export function devWeather() {
     return makeWeather(sky, moon);
 }
 
-const ALL_UPGRADES = ['pack', 'lantern', 'coat', 'compass', 'cooking-fire', 'axe', 'fishing-line'];
+const ALL_UPGRADES = UPGRADES.map((u) => u.id);
 
 function grantAll(scene) {
     scene.save = { ...scene.save, upgrades: [...ALL_UPGRADES] };
@@ -162,6 +164,8 @@ export function reportDev(scene) {
         flare: round(scene.flare),
         torches: scene.torches.map((t) => ({ x: Math.round(t.x), y: Math.round(t.y), left: round(t.until - scene.t) })),
         upgrades: scene.save.upgrades,
+        stash: scene.save.stash,
+        panel: isPanelOpen(),
         wolves: scene.wolves.distances(),
         run: scene.save.run,
         ending: scene.ending,

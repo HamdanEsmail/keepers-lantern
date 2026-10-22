@@ -17,7 +17,7 @@ import {
     sheltersYou,
 } from '../logic/landmarks.js';
 import { newSave } from '../logic/save.js';
-import { afterRun } from '../logic/run.js';
+import { afterRun, wakeReport } from '../logic/run.js';
 import { newStats, newRunSummary, newMilestones, earn, milestoneLabel, deeper } from '../logic/stats.js';
 import { phaseAt, darknessAt } from '../logic/clock.js';
 import { weatherFor, weatherLabel } from '../logic/weather.js';
@@ -38,7 +38,9 @@ import { Sky } from '../game/sky.js';
 import { Critters } from '../game/critters.js';
 import { LandmarkView } from '../game/landmarks.js';
 import { ITEMS } from '../data/items.js';
-import { WORLD, CAMP, distance, ringAt } from '../logic/world.js';
+import { WORLD, CAMP, TENT, distance, ringAt } from '../logic/world.js';
+import { isPanelOpen } from '../ui/overlay.js';
+import { openCamp, showMorning } from '../ui/camp.js';
 import { setupDev, readDevInput, reportDev, devWeather, devSeed } from '../game/dev.js';
 
 // How close you must be to gather something, and how long to hold E.
@@ -63,11 +65,6 @@ const DUSK_HINT = 'Hold Space to flare the lantern. It burns fuel fast.';
 const LOW_AT = 0.4;
 const DIM_AT = 0.25;
 
-const END_TOASTS = {
-    caught: 'The wolves found you. You wake by the fire. Your pack is gone.',
-    cold: 'The cold took the last of you. You wake by the fire. Your pack is gone.',
-    hunger: 'Hunger took the last of you. You wake by the fire. Your pack is gone.',
-};
 // The colour the screen fades to between runs: the night colour.
 const FADE = [10, 18, 14];
 const STILL = { x: 0, y: 0 };
@@ -106,6 +103,8 @@ export class ValleyScene extends Phaser.Scene {
         this.critters = new Critters(this, this.save.baseSeed + this.save.run);
 
         // Every run starts at dawn, fed and warm, with a full lantern.
+        // The day is kept here, because the save moves on to the next one as soon as a run ends.
+        this.day = this.save.run + 1;
         this.t = 0;
         this.phase = phaseAt(0);
         this.meters = startMeters(this.save.upgrades);
@@ -132,6 +131,7 @@ export class ValleyScene extends Phaser.Scene {
         this.interactions = new Interactions(this);
         for (const node of this.valley.nodes) this.addNode(node);
         this.addFire();
+        this.addTent();
         if (this.landmark) this.addLandmark();
 
         const camera = this.cameras.main;
@@ -168,6 +168,14 @@ export class ValleyScene extends Phaser.Scene {
             updatePlayer(this.player, STILL, 1);
             this.sky.update(dt);
             this.updateLight();
+            this.emitHud(null);
+            if (import.meta.env.DEV) reportDev(this);
+            return;
+        }
+
+        // While a panel is open, the valley waits: no walking, no clock, no wolves.
+        if (isPanelOpen()) {
+            updatePlayer(this.player, STILL, 1);
             this.emitHud(null);
             if (import.meta.env.DEV) reportDev(this);
             return;
@@ -239,7 +247,7 @@ export class ValleyScene extends Phaser.Scene {
     emitHud(prompt) {
         const upgrades = this.save.upgrades;
         this.events.emit('hud', {
-            day: this.save.run + 1,
+            day: this.day,
             phase: this.phase,
             meters: this.meters,
             maxFuel: maxFuel(upgrades),
@@ -320,21 +328,25 @@ export class ValleyScene extends Phaser.Scene {
         for (const id of ids) this.toast(`Milestone · ${milestoneLabel(id)}`);
     }
 
-    // Losing: the pack is gone, and you wake by the fire in a new valley.
+    // The end of a run: caught, worn out, or asleep by the fire.
+    // The screen fades, the morning panel says how it went, and you wake in a new valley.
     endRun(reason) {
         if (this.ending) return;
         this.ending = true;
-        let message = END_TOASTS.caught;
-        if (reason === 'spent') message = this.meters.food <= 0 ? END_TOASTS.hunger : END_TOASTS.cold;
+        // Being spent is either hunger or cold, whichever ran out.
+        let end = reason;
+        if (reason === 'spent') end = this.meters.food <= 0 ? 'hunger' : 'cold';
+        const report = wakeReport(end, this.summary, this.day);
 
         this.save = afterRun(this.save, reason, this.pack, this.summary);
         this.pack = [];
-        this.toast(message);
 
         const camera = this.cameras.main;
         if (reason === 'caught') camera.shake(300, 0.008);
-        camera.fadeOut(1800, ...FADE);
-        camera.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+        // Falling asleep is slower than being caught.
+        camera.fadeOut(reason === 'slept' ? 2600 : 1800, ...FADE);
+        camera.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, async () => {
+            await showMorning(report);
             this.scene.restart({ save: this.save });
         });
     }
@@ -494,6 +506,30 @@ export class ValleyScene extends Phaser.Scene {
                 if (this.save.stats.runs < 3) this.toast('Press F to eat from your pack.');
             },
         });
+    }
+
+    // The tent: E opens the camp.
+    addTent() {
+        this.interactions.add({
+            id: 'tent',
+            x: TENT.x,
+            y: TENT.y,
+            radius: TENT.reach,
+            hold: 0,
+            prompt: 'Camp',
+            use: () => this.openCampHere(),
+        });
+    }
+
+    // async lets this wait for the camp panel to close (await) without stopping the game.
+    async openCampHere() {
+        if (this.ending || isPanelOpen()) return;
+        const result = await openCamp(this.save, this.pack);
+        this.save = result.save;
+        this.pack = result.pack;
+        // Keys pressed while the panel was open shouldn't count once it closes. T would plant a torch.
+        this.input.keyboard.resetKeys();
+        if (result.action === 'sleep') this.endRun('slept');
     }
 
     // The landmark: hold E to search it for what's inside.
