@@ -1,0 +1,30 @@
+import { CAMP } from './world.js';
+
+// The wolves circle you at night. Each wolf is just an angle and a distance from you.
+// They keep just outside your light, close in as it shrinks,
+// and rush you when the lantern is almost out. They never come near the camp fire.
+
+export const WOLF_CATCH_DIST = 28;
+const SPIN = 0.4; // radians per second around you
+const SPEED = 60; // pixels per second, in or out
+const EDGE_GAP = 70; // how far outside the light they wait
+
+// Where a wolf wants to be, as a distance from you.
+export function wolfTarget({ lightRadius, dim, playerAtCamp }) {
+    if (playerAtCamp) return CAMP.safeRadius + 200;
+    if (dim) return 0;
+    return lightRadius + EDGE_GAP;
+}
+
+export function stepWolf(wolf, dt, ctx) {
+    // A hidden tab can leave a huge gap between frames. Don't let the wolves jump.
+    dt = Math.min(dt, 0.1);
+    const gap = wolfTarget(ctx) - wolf.dist;
+    const most = SPEED * dt;
+    const move = Math.max(-most, Math.min(most, gap));
+    return { angle: wolf.angle + SPIN * dt, dist: wolf.dist + move };
+}
+
+export function isCaught(wolf) {
+    return wolf.dist < WOLF_CATCH_DIST;
+}

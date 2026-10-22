@@ -6,11 +6,13 @@ import { Interactions } from '../game/interactions.js';
 import { readMove, inStream } from '../logic/move.js';
 import { addToPack, capacity } from '../logic/pack.js';
 import { newSave } from '../logic/save.js';
+import { afterRun } from '../logic/run.js';
 import { phaseAt, darknessAt } from '../logic/clock.js';
-import { tickSurvival, startMeters, maxFuel, eat, foodValue, lightRadius } from '../logic/survival.js';
+import { tickSurvival, startMeters, maxFuel, eat, foodValue, lightRadius, isSpent } from '../logic/survival.js';
 import { Darkness } from '../game/darkness.js';
+import { WolfPack } from '../game/wolves.js';
 import { ITEMS } from '../data/items.js';
-import { WORLD, CAMP, distance } from '../logic/world.js';
+import { WORLD, CAMP, distance, ringAt } from '../logic/world.js';
 import { setupDev, readDevInput, reportDev } from '../game/dev.js';
 
 // How close you must be to gather something, and how long to hold E.
@@ -26,8 +28,21 @@ const CAMP_LIGHT = 260;
 // What the valley tells you when the light changes.
 const PHASE_TOASTS = {
     dusk: 'The light is going. Your lantern is lit.',
-    night: 'Night. Stay inside the light.',
+    night: 'Night. Wolves keep to the edge of your light.',
 };
+
+// Lantern warnings, as a share of a full lantern. Below DIM_AT the wolves stop waiting.
+const LOW_AT = 0.4;
+const DIM_AT = 0.25;
+
+const END_TOASTS = {
+    caught: 'The wolves found you. You wake by the fire. Your pack is gone.',
+    cold: 'The cold took the last of you. You wake by the fire. Your pack is gone.',
+    hunger: 'Hunger took the last of you. You wake by the fire. Your pack is gone.',
+};
+// The colour the screen fades to between runs: the night colour.
+const FADE = [10, 18, 14];
+const STILL = { x: 0, y: 0 };
 
 export class ValleyScene extends Phaser.Scene {
     constructor() {
@@ -52,6 +67,8 @@ export class ValleyScene extends Phaser.Scene {
         this.t = 0;
         this.phase = phaseAt(0);
         this.meters = startMeters(this.save.upgrades);
+        this.ending = false;
+        this.warned = { low: false, dim: false };
 
         // Start beside the fire, not in it: the fire is solid.
         this.physics.world.setBounds(0, 0, WORLD.width, WORLD.height);
@@ -74,6 +91,10 @@ export class ValleyScene extends Phaser.Scene {
         // The night goes on top of everything in the valley.
         this.darkness = new Darkness(this);
         this.lightR = lightRadius(this.meters.fuel, this.save.upgrades);
+        this.wolves = new WolfPack(this);
+
+        // After a lost run, wake up slowly instead of popping in.
+        if (this.save.run > 0) camera.fadeIn(900, ...FADE);
 
         // The HUD is its own scene, drawn on top of this one.
         if (!this.scene.isActive('hud')) this.scene.launch('hud');
@@ -86,6 +107,15 @@ export class ValleyScene extends Phaser.Scene {
         const dt = Math.min(delta / 1000, 0.1);
 
         if (import.meta.env.DEV) readDevInput(this);
+
+        if (this.ending) {
+            // The run is over. Stand still while the screen fades out.
+            updatePlayer(this.player, STILL, 1);
+            this.updateLight();
+            this.emitHud(null);
+            if (import.meta.env.DEV) reportDev(this);
+            return;
+        }
 
         this.t += dt;
         const phase = phaseAt(this.t);
@@ -104,19 +134,77 @@ export class ValleyScene extends Phaser.Scene {
         const prompt = this.interactions.update(dt, eDown, this.player.x, this.player.y);
 
         this.updateLight();
+        this.updateNight(dt, phase);
+        if (!this.ending && isSpent(this.meters)) this.endRun('spent');
 
+        this.emitHud(this.ending ? null : prompt);
+        if (import.meta.env.DEV) reportDev(this);
+    }
+
+    emitHud(prompt) {
+        const upgrades = this.save.upgrades;
         this.events.emit('hud', {
             day: this.save.run + 1,
-            phase,
+            phase: this.phase,
             meters: this.meters,
             maxFuel: maxFuel(upgrades),
             pack: this.pack,
-            cap: capacity(this.save.upgrades),
+            cap: capacity(upgrades),
             prompt,
             lenses: this.save.lensDelivered.length,
         });
+    }
 
-        if (import.meta.env.DEV) reportDev(this);
+    // Lantern warnings, and the wolves once night falls.
+    updateNight(dt, phase) {
+        const fuelShare = this.meters.fuel / maxFuel(this.save.upgrades);
+        const dim = fuelShare < DIM_AT;
+        const atCamp = this.nearFire();
+
+        // You always get told before the wolves stop waiting.
+        if ((phase === 'dusk' || phase === 'night') && !atCamp) {
+            if (!this.warned.low && fuelShare < LOW_AT) {
+                this.warned.low = true;
+                this.toast('Your lantern is burning low. Head back to camp.');
+            }
+            if (!this.warned.dim && dim) {
+                this.warned.dim = true;
+                this.toast('The lantern gutters. The wolves are coming in.');
+            }
+        }
+
+        if (phase === 'night' && !this.wolves.active) {
+            // More of them, the further out you are when night falls.
+            const ring = ringAt(this.player.x, this.player.y);
+            this.wolves.spawn(ring === 'deep' || ring === 'outside' ? 3 : 2, this.player);
+        }
+        if (!this.wolves.active) return;
+
+        const caught = this.wolves.update(dt, this.player, {
+            lightRadius: this.lightR,
+            dim,
+            playerAtCamp: atCamp,
+        });
+        if (caught) this.endRun('caught');
+    }
+
+    // Losing: the pack is gone, and you wake by the fire in a new valley.
+    endRun(reason) {
+        if (this.ending) return;
+        this.ending = true;
+        let message = END_TOASTS.caught;
+        if (reason === 'spent') message = this.meters.food <= 0 ? END_TOASTS.hunger : END_TOASTS.cold;
+
+        this.save = afterRun(this.save, reason, this.pack);
+        this.pack = [];
+        this.toast(message);
+
+        const camera = this.cameras.main;
+        if (reason === 'caught') camera.shake(300, 0.008);
+        camera.fadeOut(1800, ...FADE);
+        camera.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+            this.scene.restart({ save: this.save });
+        });
     }
 
     inStream() {

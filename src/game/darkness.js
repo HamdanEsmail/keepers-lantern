@@ -26,8 +26,12 @@ export class Darkness {
             .setVisible(false);
 
         // Reused every frame instead of making new ones: a hole brush and a warm brush per light.
+        // They're never added to the scene, so the scene won't clean them up by itself.
         this.brushes = [];
         this.warmBrushes = [];
+        scene.events.once('shutdown', () => {
+            for (const b of [...this.brushes, ...this.warmBrushes]) b.destroy();
+        });
     }
 
     // alpha: how dark it is, 0 to MAX_DARKNESS.
