@@ -6,8 +6,9 @@ import { Interactions } from '../game/interactions.js';
 import { readMove, inStream } from '../logic/move.js';
 import { addToPack, capacity } from '../logic/pack.js';
 import { newSave } from '../logic/save.js';
-import { phaseAt } from '../logic/clock.js';
-import { tickSurvival, startMeters, maxFuel, eat, foodValue } from '../logic/survival.js';
+import { phaseAt, darknessAt } from '../logic/clock.js';
+import { tickSurvival, startMeters, maxFuel, eat, foodValue, lightRadius } from '../logic/survival.js';
+import { Darkness } from '../game/darkness.js';
 import { ITEMS } from '../data/items.js';
 import { WORLD, CAMP, distance } from '../logic/world.js';
 import { setupDev, readDevInput, reportDev } from '../game/dev.js';
@@ -18,6 +19,9 @@ const GATHER_TIME = 1.2;
 
 // Above this much food, eating would waste it, so the berries stay.
 const FULL_ENOUGH = 95;
+
+// The camp fire always lights this far, however dark it gets.
+const CAMP_LIGHT = 260;
 
 // What the valley tells you when the light changes.
 const PHASE_TOASTS = {
@@ -67,6 +71,10 @@ export class ValleyScene extends Phaser.Scene {
         // Darker corners, fixed to the screen instead of the world.
         this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(9500);
 
+        // The night goes on top of everything in the valley.
+        this.darkness = new Darkness(this);
+        this.lightR = lightRadius(this.meters.fuel, this.save.upgrades);
+
         // The HUD is its own scene, drawn on top of this one.
         if (!this.scene.isActive('hud')) this.scene.launch('hud');
 
@@ -95,6 +103,8 @@ export class ValleyScene extends Phaser.Scene {
         const eDown = this.dev?.eDown ?? this.keys.E.isDown;
         const prompt = this.interactions.update(dt, eDown, this.player.x, this.player.y);
 
+        this.updateLight();
+
         this.events.emit('hud', {
             day: this.save.run + 1,
             phase,
@@ -111,6 +121,19 @@ export class ValleyScene extends Phaser.Scene {
 
     inStream() {
         return inStream(this.valley.stream, this.player.x, this.player.y);
+    }
+
+    // The lantern shrinks as its fuel runs down. Both flames flicker a little.
+    updateLight() {
+        const t = this.t;
+        this.lightR = lightRadius(this.meters.fuel, this.save.upgrades);
+        const lanternFlicker = 1 + 0.02 * Math.sin(t * 9) + 0.012 * Math.sin(t * 23);
+        const fireFlicker = 1 + 0.03 * Math.sin(t * 7 + 1) + 0.015 * Math.sin(t * 17);
+        this.darkness.update(darknessAt(t), [
+            // The lantern is carried at chest height, not at the feet.
+            { x: this.player.x, y: this.player.y - 20, r: this.lightR * lanternFlicker, warm: 1 },
+            { x: CAMP.x, y: CAMP.y - 10, r: CAMP_LIGHT * fireFlicker, warm: 1 },
+        ]);
     }
 
     // Close enough to the camp fire to warm up. The wolves won't come this close either.

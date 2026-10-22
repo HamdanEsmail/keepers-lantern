@@ -110,6 +110,7 @@ export function reportDev(scene) {
         phase: scene.phase,
         meters: { food: round(m.food), warmth: round(m.warmth), fuel: round(m.fuel) },
         nearFire: scene.nearFire(),
+        light: Math.round(scene.lightR),
         pack: scene.pack,
         toast: scene.devToast ?? null,
         target: scene.interactions.target?.id ?? null,
