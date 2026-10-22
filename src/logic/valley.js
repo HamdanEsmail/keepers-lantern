@@ -8,6 +8,15 @@ export const NODE_COUNTS = { wood: 14, berries: 10, stone: 10, mushroom: 8, fish
 // Journal pages hidden around the valley, apart from the lens pages
 export const EXTRA_PAGES = ['extra-1', 'extra-2', 'extra-3'];
 
+// Groves sit mostly further out, so the forest closes in as you walk away from camp.
+const GROVE_RINGS = ['edge', 'pinewood', 'pinewood', 'deep', 'deep', 'deep'];
+
+// The chance that a tree which fits actually grows there, in each ring.
+const TREE_CHANCE = { edge: 0.45, pinewood: 0.8, deep: 1 };
+
+// Which tree pictures grow where. 2 is the pines, 1 and 3 are leafy trees.
+const TREE_KINDS = { edge: [1, 1, 3], pinewood: [2, 2, 2, 1], deep: [1, 2, 3, 3] };
+
 // The inner and outer edge of each ring, measured from Camp.
 const RING_SPAN = {
     edge: [CAMP.clearRadius, RINGS.edge],
@@ -108,16 +117,35 @@ export function generateValley(seed, { lensDelivered = [], pagesFound = [] } = {
         pages.push({ id, x: p.x, y: p.y });
     }
 
-    // 4. Trees, wherever there's room. spots that dont fit are skipped
+    // 4. Trees. Most grow in groves with open glades between them,
+    //    and the forest gets thicker the further you are from camp.
+    const groves = [];
+    for (let i = 0; i < 40; i++) {
+        groves.push(pointInRing(rng, pick(rng, GROVE_RINGS)));
+    }
     const things = [...nodes, ...lenses, ...pages];
     const trees = [];
-    for (let i = 0; i <380; i++) {
-        const angle = rng() * Math.PI * 2;
-        const r = RINGS.deep * Math.sqrt(rng());
-        const p = { x: CAMP.x + Math.cos(angle) * r, y: CAMP.y + Math.sin(angle) * r };
-        if (clearOfLandmarks(p) && farFrom(p, trees, 70) && farFrom(p, things, 60) && farFrom(p, stream, 40)) {
-            trees.push({ x: p.x, y: p.y, r: randRange(rng, 22, 30), variant: 1 + Math.floor(rng() * 3) });
+    for (let i = 0; i < 1400; i++) {
+        const p = rng() < 0.7 ? nearGrove(rng, pick(rng, groves)) : anywhere(rng);
+        const ring = ringAt(p.x, p.y);
+        if (ring === 'outside' || rng() > TREE_CHANCE[ring]) continue;
+        if (clearOfLandmarks(p) && farFrom(p, trees, 64) && farFrom(p, things, 60) && farFrom(p, stream, 40)) {
+            trees.push({ x: p.x, y: p.y, r: randRange(rng, 22, 30), variant: pick(rng, TREE_KINDS[ring]) });
         }
     }
     return { seed, trees, stream, nodes, lenses, pages };
+}
+
+// A random spot within 240px of a grove's centre.
+function nearGrove(rng, grove) {
+    const angle = rng() * Math.PI * 2;
+    const r = 240 * Math.sqrt(rng());
+    return { x: grove.x + Math.cos(angle) * r, y: grove.y + Math.sin(angle) * r };
+}
+
+// A random spot anywhere in the valley, spread evenly.
+function anywhere(rng) {
+    const angle = rng() * Math.PI * 2;
+    const r = RINGS.deep * Math.sqrt(rng());
+    return { x: CAMP.x + Math.cos(angle) * r, y: CAMP.y + Math.sin(angle) * r };
 }

@@ -1,5 +1,5 @@
 import { makeRng, randRange } from '../logic/rng.js';
-import { WORLD, CAMP, BEACON, RINGS, distance } from '../logic/world.js';
+import { WORLD, CAMP, BEACON, RINGS, distance, ringAt } from '../logic/world.js';
 import { ITEMS } from '../data/items.js';
 
 // Past this distance from camp the forest is too thick to walk through
@@ -8,6 +8,9 @@ const WALL_RADIUS = RINGS.deep + 50;
 const DEPTH = { ground: -100, shade: -90, stream: -80, wall: -70 };
 
 const WALL_TINTS = [0xb8c4bb, 0x8a978e, 0x66726a];
+
+// Trees in the deep woods are a little darker, so you can tell when you've gone far.
+const DEEP_TINT = 0xc6d2ca;
 
 export function drawValley(scene, valley) {
     const rng = makeRng(valley.seed + 1000);
@@ -19,7 +22,8 @@ export function drawValley(scene, valley) {
     const solids = scene.physics.add.staticGroup();
 
     for (const t of valley.trees) {
-        addTree(scene, solids, t.x, t.y, t.r, t.variant);
+        const tree = addTree(scene, solids, t.x, t.y, t.r, t.variant);
+        if (ringAt(t.x, t.y) === 'deep') tree.setTint(DEEP_TINT);
     }
     addWallTrees(scene, solids, rng);
 
@@ -30,6 +34,25 @@ export function drawValley(scene, valley) {
     addSolid(scene, solids, tentX, tentY - 18, 38);
     scene.add.image(CAMP.x, CAMP.y, 'fire').setOrigin(0.5, 0.8).setDepth(CAMP.y);
     addSolid(scene, solids, CAMP.x, CAMP.y, 16);
+
+    // Warm light from the fire. ADD blending brightens whatever is underneath it.
+    // Depth 9000 puts it over the trees and you, so they're lit too.
+    const glow = scene.add.image(CAMP.x, CAMP.y - 10, 'light')
+        .setTint(0xffcf7a)
+        .setBlendMode('ADD')
+        .setAlpha(0.35)
+        .setScale(2.2)
+        .setDepth(9000);
+    // Make it flicker, gently and forever.
+    scene.tweens.add({
+        targets: glow,
+        alpha: 0.45,
+        scale: 2.3,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+    });
 
     // The father's beacon, still dark.
     const beacon = scene.add.image(BEACON.x, BEACON.y, 'beacon-dark').setOrigin(0.5, 0.87).setDepth(BEACON.y);
@@ -69,6 +92,11 @@ function drawGround(scene, rng) {
             randRange(rng, 90, 180),
         );
     }
+
+    // A worn clearing around camp: lighter grass, with bare earth in the middle.
+    // The soft 'light' circle, tinted and squashed, gives it edges that fade out.
+    scene.add.image(CAMP.x, CAMP.y, 'light').setTint(0x5d8467).setAlpha(0.7).setScale(2.2, 1.5).setDepth(DEPTH.shade);
+    scene.add.image(CAMP.x - 20, CAMP.y + 6, 'light').setTint(0xa88f63).setAlpha(0.35).setScale(1.3, 0.8).setDepth(DEPTH.shade);
 }
 
 function drawStream(scene, points) {

@@ -30,6 +30,7 @@ export class BootScene extends Phaser.Scene {
     }
     create() {
         this.makeLightTexture();
+        this.makeVignetteTexture();
         this.scene.start('valley');
     }
     makeLightTexture() {
@@ -40,6 +41,21 @@ export class BootScene extends Phaser.Scene {
         glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = glow;
         ctx.fillRect(0, 0, 256, 256);
+        texture.refresh();
+    }
+
+    // Clear in the middle and darker towards the corners, like the painted mockup.
+    makeVignetteTexture() {
+        const { width, height } = this.scale;
+        const texture = this.textures.createCanvas('vignette', width, height);
+        const ctx = texture.getContext();
+        const cx = width / 2;
+        const cy = height * 0.55;
+        const shade = ctx.createRadialGradient(cx, cy, height * 0.35, cx, cy, width * 0.65);
+        shade.addColorStop(0, 'rgba(10, 18, 14, 0)');
+        shade.addColorStop(1, 'rgba(10, 18, 14, 0.7)');
+        ctx.fillStyle = shade;
+        ctx.fillRect(0, 0, width, height);
         texture.refresh();
     }
 }
