@@ -1,5 +1,14 @@
 import { it, expect } from 'vitest';
-import { tickSurvival, startMeters, maxFuel, eat, isSpent, lightRadius } from '../src/logic/survival.js';
+import {
+    tickSurvival,
+    startMeters,
+    maxFuel,
+    eat,
+    isSpent,
+    lightRadius,
+    stepFlare,
+    flaredRadius,
+} from '../src/logic/survival.js';
 
 const env = (o) => ({ phase: 'night', nearFire: false, upgrades: [], ...o });
 
@@ -36,6 +45,30 @@ it('sprinting makes you hungry three times as fast', () => {
     expect(tickSurvival(m, 0.1, env({ sprinting: true, upgrades: ['cooking-fire'] })).food).toBeCloseTo(99.955);
     // Only food: warmth and fuel don't care.
     expect(tickSurvival(m, 0.1, env({ sprinting: true })).warmth).toBeCloseTo(99.97);
+});
+
+it('a flare burns fuel fast, but only while the lantern is lit', () => {
+    const m = startMeters([]);
+    expect(tickSurvival(m, 0.1, env({ flare: 1 })).fuel).toBeCloseTo(99.55);
+    expect(tickSurvival(m, 0.1, env({ flare: 0.5 })).fuel).toBeCloseTo(99.75);
+    expect(tickSurvival(m, 0.1, env({ flare: 1, phase: 'day' })).fuel).toBe(100);
+    expect(tickSurvival(m, 0.1, env({ flare: 1, nearFire: true })).fuel).toBe(100);
+});
+
+it('a flare swells quickly and dies down a little slower', () => {
+    let f = 0;
+    for (let i = 0; i < 3; i++) f = stepFlare(f, 0.1, true);
+    expect(f).toBe(1);
+    for (let i = 0; i < 2; i++) f = stepFlare(f, 0.1, false);
+    expect(f).toBeGreaterThan(0);
+    for (let i = 0; i < 3; i++) f = stepFlare(f, 0.1, false);
+    expect(f).toBe(0);
+    expect(stepFlare(0, 30, true)).toBeCloseTo(0.4);
+});
+
+it('a full flare makes the light half as big again', () => {
+    expect(flaredRadius(220, 0)).toBe(220);
+    expect(flaredRadius(220, 1)).toBe(330);
 });
 
 it('clamps big frame gaps (hidden tab)', () => {

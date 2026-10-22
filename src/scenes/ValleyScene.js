@@ -9,7 +9,17 @@ import { newSave } from '../logic/save.js';
 import { afterRun } from '../logic/run.js';
 import { newStats, newRunSummary, newMilestones, earn, milestoneLabel, deeper } from '../logic/stats.js';
 import { phaseAt, darknessAt } from '../logic/clock.js';
-import { tickSurvival, startMeters, maxFuel, eat, foodValue, lightRadius, isSpent } from '../logic/survival.js';
+import {
+    tickSurvival,
+    startMeters,
+    maxFuel,
+    eat,
+    foodValue,
+    lightRadius,
+    isSpent,
+    stepFlare,
+    flaredRadius,
+} from '../logic/survival.js';
 import { Darkness } from '../game/darkness.js';
 import { WolfPack } from '../game/wolves.js';
 import { ITEMS } from '../data/items.js';
@@ -31,6 +41,8 @@ const PHASE_TOASTS = {
     dusk: 'The light is going. Your lantern is lit.',
     night: 'Night. Wolves keep to the edge of your light.',
 };
+
+const DUSK_HINT = 'Hold Space to flare the lantern. It burns fuel fast.';
 
 // Lantern warnings, as a share of a full lantern. Below DIM_AT the wolves stop waiting.
 const LOW_AT = 0.4;
@@ -70,6 +82,7 @@ export class ValleyScene extends Phaser.Scene {
         this.meters = startMeters(this.save.upgrades);
         this.ending = false;
         this.warned = { low: false, dim: false };
+        this.flare = 0;
 
         // What happens this run, for the stats and milestones.
         if (!this.save.stats) this.save = { ...this.save, stats: newStats() };
@@ -82,7 +95,7 @@ export class ValleyScene extends Phaser.Scene {
         this.player = createPlayer(this, CAMP.x + 50, CAMP.y + 40);
         this.physics.add.collider(this.player, this.view.solids);
 
-        this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,E,SHIFT');
+        this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,E,SHIFT,SPACE');
 
         this.interactions = new Interactions(this);
         for (const node of this.valley.nodes) this.addNode(node);
@@ -129,6 +142,8 @@ export class ValleyScene extends Phaser.Scene {
         if (phase !== this.phase) {
             this.phase = phase;
             if (PHASE_TOASTS[phase]) this.toast(PHASE_TOASTS[phase]);
+            // For the first few runs, remind new players what they can do about the dark.
+            if (phase === 'dusk' && this.save.stats.runs < 3) this.toast(DUSK_HINT);
         }
         // Shift to sprint, but only while you're actually moving.
         const dir = this.dev?.dir ?? readMove(this.keys);
@@ -136,8 +151,19 @@ export class ValleyScene extends Phaser.Scene {
         const sprinting = moving && (this.dev?.shift ?? this.keys.SHIFT.isDown);
         updatePlayer(this.player, dir, speedFor({ inStream: this.inStream(), sprinting }));
 
+        // Space flares the lantern, but only while it's lit (dusk and night, away from camp).
+        const lit = (phase === 'dusk' || phase === 'night') && !this.nearFire();
+        const flaring = lit && this.meters.fuel > 0 && (this.dev?.space ?? this.keys.SPACE.isDown);
+        this.flare = stepFlare(this.flare, dt, flaring);
+
         const upgrades = this.save.upgrades;
-        this.meters = tickSurvival(this.meters, dt, { phase, nearFire: this.nearFire(), upgrades, sprinting });
+        this.meters = tickSurvival(this.meters, dt, {
+            phase,
+            nearFire: this.nearFire(),
+            upgrades,
+            sprinting,
+            flare: this.flare,
+        });
 
         const eDown = this.dev?.eDown ?? this.keys.E.isDown;
         const prompt = this.interactions.update(dt, eDown, this.player.x, this.player.y);
@@ -196,9 +222,10 @@ export class ValleyScene extends Phaser.Scene {
         }
         if (!this.wolves.active) return;
 
+        // A flare holds them off even when the lantern is low: they back away from the bigger light.
         const caught = this.wolves.update(dt, this.player, {
             lightRadius: this.lightR,
-            dim,
+            dim: dim && this.flare < 0.5,
             playerAtCamp: atCamp,
         });
         if (caught) {
@@ -252,12 +279,12 @@ export class ValleyScene extends Phaser.Scene {
     // The lantern shrinks as its fuel runs down. Both flames flicker a little.
     updateLight() {
         const t = this.t;
-        this.lightR = lightRadius(this.meters.fuel, this.save.upgrades);
+        this.lightR = flaredRadius(lightRadius(this.meters.fuel, this.save.upgrades), this.flare);
         const lanternFlicker = 1 + 0.02 * Math.sin(t * 9) + 0.012 * Math.sin(t * 23);
         const fireFlicker = 1 + 0.03 * Math.sin(t * 7 + 1) + 0.015 * Math.sin(t * 17);
         this.darkness.update(darknessAt(t), [
             // The lantern is carried at chest height, not at the feet.
-            { x: this.player.x, y: this.player.y - 20, r: this.lightR * lanternFlicker, warm: 1 },
+            { x: this.player.x, y: this.player.y - 20, r: this.lightR * lanternFlicker, warm: 1 + this.flare },
             { x: CAMP.x, y: CAMP.y - 10, r: CAMP_LIGHT * fireFlicker, warm: 1 },
         ]);
     }
