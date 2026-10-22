@@ -1,44 +1,50 @@
 // Testing helpers for `npm run dev` only. The live site never includes them,
-// because ValleyScene only calls setupDev when import.meta.env.DEV is true.
+// because ValleyScene only calls these when import.meta.env.DEV is true.
 //
 // URL options (add them after the address, e.g. localhost:5173/?at=1000,1200):
 //   ?at=x,y       start somewhere else
 //   ?walk=dx,dy   keep walking in one direction without touching the keys
 //   ?physics      show the invisible solid circles
+//   ?pack=a,b     start with these items in your pack
 //
-// From the browser console:
-//   window.dispatchEvent(new Event('dev-step'))
-// runs one second of game time (60 frames), even if the tab is hidden.
-// Set document.documentElement.dataset.devFrames to step a different number of frames.
+// From the browser console you can also steer the game while it runs:
+//   document.documentElement.dataset.devWalk = '1,0'   walk right ('' to stop)
+//   document.documentElement.dataset.devE = '1'        hold E ('' to let go)
+//   window.dispatchEvent(new Event('dev-step'))        run one second of game time,
+//                                                      even if the tab is hidden
 // After every frame, document.documentElement.dataset.devState holds a summary of the game.
 
+const html = document.documentElement;
 let current = null;
 let clock = 0;
 
 export function setupDev(scene) {
     const q = new URLSearchParams(location.search);
-    scene.dev = { dir: null };
+    scene.dev = { dir: null, eDown: null };
+    if (q.has('walk') && !html.dataset.devWalk) html.dataset.devWalk = q.get('walk');
 
-    if (q.has('walk')) {
-        const [dx, dy] = q.get('walk').split(',').map(Number);
-        const length = Math.hypot(dx, dy) || 1;
-        scene.dev.dir = { x: dx / length, y: dy / length };
-    }
-    if (q.has('at')) {
+    // Only teleport on the first valley, not after every restart.
+    if (q.has('at') && !current) {
         const [x, y] = q.get('at').split(',').map(Number);
         scene.player.setPosition(x, y);
         scene.cameras.main.centerOn(x, y);
     }
+    // ?pack=wood,stone  start with these in your pack.
+    if (q.has('pack') && !current) scene.pack = q.get('pack').split(',').filter(Boolean);
     if (q.has('physics')) {
         scene.physics.world.createDebugGraphic();
         scene.physics.world.drawDebug = true;
     }
+    // Remember the last message, so a test can read it from devState.
+    scene.events.on('toast', (message) => {
+        scene.devToast = message;
+    });
 
     // Only one listener for the whole page, pointed at whichever valley is running now.
     if (!current) {
         clock = performance.now();
         window.addEventListener('dev-step', () => {
-            const frames = Number(document.documentElement.dataset.devFrames || 60);
+            const frames = Number(html.dataset.devFrames || 60);
             for (let i = 0; i < frames; i++) {
                 clock += 1000 / 60;
                 current.game.step(clock, 1000 / 60);
@@ -48,7 +54,20 @@ export function setupDev(scene) {
     current = scene;
 }
 
-// Called at the end of every frame in dev builds.
+// Called at the start of every frame: fake keys from the console, if any.
+export function readDevInput(scene) {
+    const walk = html.dataset.devWalk;
+    if (walk) {
+        const [dx, dy] = walk.split(',').map(Number);
+        const length = Math.hypot(dx, dy) || 1;
+        scene.dev.dir = { x: dx / length, y: dy / length };
+    } else {
+        scene.dev.dir = null;
+    }
+    scene.dev.eDown = html.dataset.devE ? true : null;
+}
+
+// Called at the end of every frame.
 export function reportDev(scene) {
     const p = scene.player;
     const state = {
@@ -56,8 +75,11 @@ export function reportDev(scene) {
         y: Math.round(p.y),
         speed: Math.round(p.body.speed),
         inStream: scene.inStream(),
+        pack: scene.pack,
+        toast: scene.devToast ?? null,
+        target: scene.interactions.target?.id ?? null,
     };
     // Later systems add their own numbers through scene.devExtra().
     if (scene.devExtra) Object.assign(state, scene.devExtra());
-    document.documentElement.dataset.devState = JSON.stringify(state);
+    html.dataset.devState = JSON.stringify(state);
 }
