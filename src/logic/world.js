@@ -5,6 +5,9 @@ export const WORLD = { width: 3600, height: 3600 };
 // and no trees grow within ClearRadius.
 export const CAMP = { x: 1800, y: 1800, safeRadius: 160, clearRadius: 240 };
 
+// The tent stands just left of the fire. E there opens the camp.
+export const TENT = { x: CAMP.x - 90, y: CAMP.y - 20, reach: 70 };
+
 // The beacon never moves. Only the forest does.
 export const BEACON = { x: 2900, y: 700, clearRadius: 200 };
 

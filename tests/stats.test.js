@@ -8,6 +8,8 @@ import {
     milestoneLabel,
     deeper,
     MILESTONES,
+    formatSeconds,
+    statLines,
 } from '../src/logic/stats.js';
 
 const run = (o) => ({ ...newRunSummary(), ...o });
@@ -83,4 +85,22 @@ it('has a label for every milestone and unique ids', () => {
     const ids = MILESTONES.map((m) => m.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(milestoneLabel(id).length).toBeGreaterThan(3);
+});
+
+it('writes seconds the way people say them', () => {
+    expect(formatSeconds(40)).toBe('40 s');
+    expect(formatSeconds(75.4)).toBe('1 min 15 s');
+    expect(formatSeconds(120)).toBe('2 min');
+});
+
+it('has one line for each number shown at camp', () => {
+    const stats = { ...newStats(), runs: 4, nightsSurvived: 1, longestNight: 62, milestones: ['close-call'] };
+    expect(statLines(stats)).toEqual([
+        'Days finished: 4',
+        'Nights survived: 1',
+        'Longest night out: 1 min 2 s',
+        'Caught by wolves: 0',
+        'Things gathered: 0',
+        `Milestones: 1 of ${MILESTONES.length}`,
+    ]);
 });

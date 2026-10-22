@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ITEMS } from '../data/items.js';
+import { iconFor } from '../data/items.js';
 
 // The heads-up display: day and meters top left, pack top right,
 // the E prompt and short messages ("toasts") at the bottom.
@@ -16,12 +16,6 @@ const METERS = [
 ];
 const SLOT = 44;
 const GAP = 6;
-
-// Which picture shows an item in the pack.
-export function iconFor(item) {
-    if (item.startsWith('lens-')) return 'lens';
-    return ITEMS[item]?.icon ?? ITEMS[item]?.art ?? item;
-}
 
 export class HudScene extends Phaser.Scene {
     constructor() {

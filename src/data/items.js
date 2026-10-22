@@ -14,3 +14,16 @@ export const ITEMS = {
     meal: { label: 'Meal', ring: null, gather: 'pack', art: 'meal' },
 };
 // icon (optional): the picture in your pack, when it isn't the same as the one in the valley.
+
+// Which picture shows an item: in the pack, and on the camp panel.
+// Lens pieces ('lens-0', 'lens-1', ...) all share one picture.
+export function iconFor(item) {
+    if (item.startsWith('lens-')) return 'lens';
+    return ITEMS[item]?.icon ?? ITEMS[item]?.art ?? item;
+}
+
+// The name of an item, in words. Lens pieces all have the same one.
+export function labelFor(item) {
+    if (item.startsWith('lens-')) return 'Lens piece';
+    return ITEMS[item]?.label ?? item;
+}

@@ -1,5 +1,5 @@
 import { makeRng, randRange } from '../logic/rng.js';
-import { WORLD, CAMP, BEACON, RINGS, distance, ringAt } from '../logic/world.js';
+import { WORLD, CAMP, TENT, BEACON, RINGS, distance, ringAt } from '../logic/world.js';
 import { ITEMS } from '../data/items.js';
 
 // Past this distance from camp the forest is too thick to walk through
@@ -28,10 +28,8 @@ export function drawValley(scene, valley) {
     addWallTrees(scene, solids, rng);
 
     // Camp: the tent, and the fire right in the middle.
-    const tentX = CAMP.x - 90;
-    const tentY = CAMP.y - 20;
-    scene.add.image(tentX, tentY, 'tent').setOrigin(0.5, 0.88).setDepth(tentY);
-    addSolid(scene, solids, tentX, tentY - 18, 38);
+    scene.add.image(TENT.x, TENT.y, 'tent').setOrigin(0.5, 0.88).setDepth(TENT.y);
+    addSolid(scene, solids, TENT.x, TENT.y - 18, 38);
     scene.add.image(CAMP.x, CAMP.y, 'fire').setOrigin(0.5, 0.8).setDepth(CAMP.y);
     addSolid(scene, solids, CAMP.x, CAMP.y, 16);
 

@@ -80,3 +80,23 @@ export function earn(stats, ids) {
 export function milestoneLabel(id) {
     return MILESTONES.find((m) => m.id === id)?.label ?? id;
 }
+
+// 75 becomes "1 min 15 s", 40 becomes "40 s".
+export function formatSeconds(seconds) {
+    const s = Math.round(seconds);
+    if (s < 60) return `${s} s`;
+    const rest = s % 60;
+    return rest ? `${Math.floor(s / 60)} min ${rest} s` : `${s / 60} min`;
+}
+
+// The numbers shown at camp, one line each.
+export function statLines(stats) {
+    return [
+        `Days finished: ${stats.runs}`,
+        `Nights survived: ${stats.nightsSurvived}`,
+        `Longest night out: ${formatSeconds(stats.longestNight)}`,
+        `Caught by wolves: ${stats.caught}`,
+        `Things gathered: ${stats.gathered}`,
+        `Milestones: ${stats.milestones.length} of ${MILESTONES.length}`,
+    ];
+}
