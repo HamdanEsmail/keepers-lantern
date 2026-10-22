@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { readMove, distanceToSegment, inStream } from '../src/logic/move.js';
+import { readMove, distanceToSegment, inStream, speedFor } from '../src/logic/move.js';
+
+describe('speedFor', () => {
+    it('walks at full speed on land', () => expect(speedFor({ inStream: false, sprinting: false })).toBe(1));
+    it('wades slower in the stream', () => expect(speedFor({ inStream: true, sprinting: false })).toBeCloseTo(0.6));
+    it('sprints faster', () => expect(speedFor({ inStream: false, sprinting: true })).toBeCloseTo(1.55));
+    it('sprinting in the stream is still slower than walking on land', () => {
+        expect(speedFor({ inStream: true, sprinting: true })).toBeLessThan(1);
+    });
+});
 
 // Pretend keyboard: only the keys listed are held down.
 function keys(...held) {

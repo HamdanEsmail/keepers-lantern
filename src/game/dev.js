@@ -15,6 +15,7 @@
 // From the browser console you can also steer the game while it runs:
 //   document.documentElement.dataset.devWalk = '1,0'   walk right ('' to stop)
 //   document.documentElement.dataset.devE = '1'        hold E ('' to let go)
+//   document.documentElement.dataset.devShift = '1'    hold Shift (sprint)
 //   document.documentElement.dataset.devTime = '0.75'  jump to that point in the day
 //   window.dispatchEvent(new Event('dev-step'))        run one second of game time,
 //                                                      even if the tab is hidden
@@ -89,6 +90,7 @@ export function readDevInput(scene) {
         scene.dev.dir = null;
     }
     scene.dev.eDown = html.dataset.devE ? true : null;
+    scene.dev.shift = html.dataset.devShift ? true : null;
 
     if (html.dataset.devTime) {
         scene.t = Number(html.dataset.devTime) * DAY_LENGTH;

@@ -23,10 +23,12 @@ export function createPlayer(scene, x, y) {
     return player;
 }
 
-// dir comes from readMove. speedMul is 1 normally, less in the stream.
+// dir comes from readMove. speedMul is 1 normally, less in the stream, more when sprinting.
 export function updatePlayer(player, dir, speedMul) {
     const speed = PLAYER_SPEED * speedMul;
     player.setVelocity(dir.x * speed, dir.y * speed);
+    // Faster steps sway faster.
+    player.walkTween.timeScale = Math.max(0.6, speedMul);
 
     // The picture faces right, so flip it when walking left.
     if (dir.x !== 0) player.setFlipX(dir.x < 0);

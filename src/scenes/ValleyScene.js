@@ -3,7 +3,7 @@ import { generateValley } from '../logic/valley.js';
 import { drawValley } from '../game/valleyView.js';
 import { createPlayer, updatePlayer } from '../game/player.js';
 import { Interactions } from '../game/interactions.js';
-import { readMove, inStream } from '../logic/move.js';
+import { readMove, inStream, speedFor } from '../logic/move.js';
 import { addToPack, capacity } from '../logic/pack.js';
 import { newSave } from '../logic/save.js';
 import { afterRun } from '../logic/run.js';
@@ -82,7 +82,7 @@ export class ValleyScene extends Phaser.Scene {
         this.player = createPlayer(this, CAMP.x + 50, CAMP.y + 40);
         this.physics.add.collider(this.player, this.view.solids);
 
-        this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,E');
+        this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,E,SHIFT');
 
         this.interactions = new Interactions(this);
         for (const node of this.valley.nodes) this.addNode(node);
@@ -130,12 +130,14 @@ export class ValleyScene extends Phaser.Scene {
             this.phase = phase;
             if (PHASE_TOASTS[phase]) this.toast(PHASE_TOASTS[phase]);
         }
-        const upgrades = this.save.upgrades;
-        this.meters = tickSurvival(this.meters, dt, { phase, nearFire: this.nearFire(), upgrades });
-
+        // Shift to sprint, but only while you're actually moving.
         const dir = this.dev?.dir ?? readMove(this.keys);
-        const speedMul = this.inStream() ? 0.6 : 1;
-        updatePlayer(this.player, dir, speedMul);
+        const moving = dir.x !== 0 || dir.y !== 0;
+        const sprinting = moving && (this.dev?.shift ?? this.keys.SHIFT.isDown);
+        updatePlayer(this.player, dir, speedFor({ inStream: this.inStream(), sprinting }));
+
+        const upgrades = this.save.upgrades;
+        this.meters = tickSurvival(this.meters, dt, { phase, nearFire: this.nearFire(), upgrades, sprinting });
 
         const eDown = this.dev?.eDown ?? this.keys.E.isDown;
         const prompt = this.interactions.update(dt, eDown, this.player.x, this.player.y);

@@ -3,6 +3,14 @@
 // The stream is drawn 34px wide, so you're in it within 17px of its middle line.
 export const STREAM_HALF_WIDTH = 17;
 
+// Speed multipliers: wading slows you down, sprinting (Shift) speeds you up.
+const STREAM_SLOW = 0.6;
+const SPRINT = 1.55;
+
+export function speedFor({ inStream, sprinting }) {
+    return (inStream ? STREAM_SLOW : 1) * (sprinting ? SPRINT : 1);
+}
+
 // Which way the keys point, as a direction of length 1 (or 0 when nothing is pressed).
 // keys holds Phaser key objects, each with an isDown flag.
 export function readMove(keys) {

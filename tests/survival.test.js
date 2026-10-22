@@ -30,6 +30,14 @@ it('gets hungry, a little slower with the cooking fire', () => {
     expect(tickSurvival(m, 0.1, env({ upgrades: ['cooking-fire'] })).food).toBeCloseTo(99.985);
 });
 
+it('sprinting makes you hungry three times as fast', () => {
+    const m = startMeters([]);
+    expect(tickSurvival(m, 0.1, env({ sprinting: true })).food).toBeCloseTo(99.94);
+    expect(tickSurvival(m, 0.1, env({ sprinting: true, upgrades: ['cooking-fire'] })).food).toBeCloseTo(99.955);
+    // Only food: warmth and fuel don't care.
+    expect(tickSurvival(m, 0.1, env({ sprinting: true })).warmth).toBeCloseTo(99.97);
+});
+
 it('clamps big frame gaps (hidden tab)', () => {
     const m = startMeters([]);
     expect(tickSurvival(m, 30, env())).toEqual(tickSurvival(m, 0.1, env()));

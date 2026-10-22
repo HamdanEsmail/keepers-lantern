@@ -2,6 +2,7 @@
 // instead of changing the old ones, so they're easy to test.
 
 const FOOD_LOSS = 0.2; // per second
+const SPRINT_HUNGER = 3; // running makes you hungry three times as fast
 const WARMTH_LOSS = { dawn: 0.1, day: 0.1, dusk: 0.2, night: 0.3 };
 const FIRE_WARMTH = 5; // per second, near the camp fire
 const FUEL_BURN = 0.5; // per second, at dusk and night
@@ -21,11 +22,11 @@ function clamp(value, max) {
     return Math.min(max, Math.max(0, value));
 }
 
-export function tickSurvival(meters, dt, { phase, nearFire, upgrades }) {
+export function tickSurvival(meters, dt, { phase, nearFire, upgrades, sprinting = false }) {
     // A hidden tab can leave a huge gap between frames. Don't punish it.
     dt = Math.min(dt, 0.1);
 
-    const hungerMul = upgrades.includes('cooking-fire') ? 0.75 : 1;
+    const hungerMul = (upgrades.includes('cooking-fire') ? 0.75 : 1) * (sprinting ? SPRINT_HUNGER : 1);
     const coldMul = upgrades.includes('coat') ? 0.6 : 1;
 
     const food = meters.food - FOOD_LOSS * hungerMul * dt;
