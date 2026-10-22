@@ -7,6 +7,15 @@ import { readMove, inStream, speedFor } from '../logic/move.js';
 import { addToPack, takeFromPack, capacity } from '../logic/pack.js';
 import { plantTorch, torchRadius, liveTorches, canPlant, inTorchLight, shelterDistance } from '../logic/torches.js';
 import { gatherTime, gatherCount, gatherMode, cookAll, eatFromPack } from '../logic/tools.js';
+import {
+    LANDMARKS,
+    LANDMARK_REACH,
+    placeLandmark,
+    clearAround,
+    searchLandmark,
+    isEmpty,
+    sheltersYou,
+} from '../logic/landmarks.js';
 import { newSave } from '../logic/save.js';
 import { afterRun } from '../logic/run.js';
 import { newStats, newRunSummary, newMilestones, earn, milestoneLabel, deeper } from '../logic/stats.js';
@@ -27,9 +36,10 @@ import { Darkness } from '../game/darkness.js';
 import { WolfPack } from '../game/wolves.js';
 import { Sky } from '../game/sky.js';
 import { Critters } from '../game/critters.js';
+import { LandmarkView } from '../game/landmarks.js';
 import { ITEMS } from '../data/items.js';
 import { WORLD, CAMP, distance, ringAt } from '../logic/world.js';
-import { setupDev, readDevInput, reportDev, devWeather } from '../game/dev.js';
+import { setupDev, readDevInput, reportDev, devWeather, devSeed } from '../game/dev.js';
 
 // How close you must be to gather something, and how long to hold E.
 // (The hold time is in logic/tools.js, since the axe changes it.)
@@ -69,16 +79,23 @@ export class ValleyScene extends Phaser.Scene {
 
     // Runs before create(). A restart passes the save along, so progress is kept.
     init(data) {
-        this.save = data?.save ?? newSave(1);
+        this.save = data?.save ?? newSave(import.meta.env.DEV ? devSeed() : 1);
     }
 
     create() {
         // Every run gets its own valley: the forest has moved overnight.
-        this.valley = generateValley(this.save.baseSeed + this.save.run, {
+        const valley = generateValley(this.save.baseSeed + this.save.run, {
             lensDelivered: this.save.lensDelivered,
             pagesFound: this.save.pagesFound,
         });
+        // One landmark in each valley, with room cleared around it (see landmarks.js).
+        this.landmark = placeLandmark(valley);
+        this.valley = clearAround(valley, this.landmark);
         this.view = drawValley(this, this.valley);
+        this.landmarkView = this.landmark ? new LandmarkView(this, this.view.solids, this.landmark) : null;
+        this.landmarkSeen = false;
+        this.searched = false;
+        this.toldDry = false;
         this.pack = [];
 
         // The sky and the night are different every run too (see weather.js).
@@ -115,6 +132,7 @@ export class ValleyScene extends Phaser.Scene {
         this.interactions = new Interactions(this);
         for (const node of this.valley.nodes) this.addNode(node);
         this.addFire();
+        if (this.landmark) this.addLandmark();
 
         const camera = this.cameras.main;
         camera.setBounds(0, 0, WORLD.width, WORLD.height);
@@ -183,6 +201,9 @@ export class ValleyScene extends Phaser.Scene {
         if (this.dev?.fPressed || Phaser.Input.Keyboard.JustDown(this.keys.F)) this.eatSnack();
         this.updateTorches();
         const sheltered = inTorchLight(this.torches, this.player.x, this.player.y, this.t);
+        // The hollow tree and the boulder keep the rain off.
+        const dry = sheltersYou(this.landmark, this.player.x, this.player.y);
+        this.updateLandmark(dry);
 
         // Space flares the lantern, but only while it's lit (dusk and night, away from fire and torches).
         const lit = (phase === 'dusk' || phase === 'night') && !this.nearFire() && !sheltered;
@@ -197,7 +218,7 @@ export class ValleyScene extends Phaser.Scene {
             sprinting,
             flare: this.flare,
             sheltered,
-            cold: this.weather.cold,
+            cold: dry ? 1 : this.weather.cold,
         });
 
         const eDown = this.dev?.eDown ?? this.keys.E.isDown;
@@ -475,6 +496,62 @@ export class ValleyScene extends Phaser.Scene {
         });
     }
 
+    // The landmark: hold E to search it for what's inside.
+    addLandmark() {
+        const info = LANDMARKS[this.landmark.kind];
+        this.interactions.add({
+            id: 'landmark',
+            x: this.landmark.x,
+            y: this.landmark.y,
+            radius: LANDMARK_REACH,
+            hold: 1.2,
+            prompt: `Search the ${info.label}`,
+            isActive: () => !isEmpty(this.landmark),
+            use: () => this.searchHere(),
+        });
+    }
+
+    searchHere() {
+        const info = LANDMARKS[this.landmark.kind];
+        const cap = capacity(this.save.upgrades);
+        const space = cap - this.pack.length;
+        const result = searchLandmark(this.landmark, space, this.meters.food < FULL_ENOUGH);
+        if (!result.take.length && !result.food) {
+            this.toast(space <= 0 ? 'Your pack is full.' : 'Not hungry yet.');
+            return;
+        }
+        this.landmark = result.landmark;
+        this.pack = [...this.pack, ...result.take];
+        if (result.food) {
+            this.meters = { ...this.meters, food: Math.min(100, this.meters.food + result.food) };
+            this.summary.eaten += 1;
+        }
+        this.summary.gathered += result.take.length;
+        if (this.pack.length >= cap) this.summary.packFilled = true;
+        if (!this.searched) {
+            this.searched = true;
+            this.summary.landmarks += 1;
+            this.toast(info.found);
+        }
+        this.floatText(this.landmark.x, this.landmark.y - 70, describeFind(result));
+        if (isEmpty(this.landmark)) this.landmarkView.emptied();
+        else this.toast("There's more here, if you make room.");
+    }
+
+    // The first time you come near the landmark, and the first time it keeps the rain off you.
+    updateLandmark(dry) {
+        if (!this.landmark) return;
+        const { x, y } = this.player;
+        if (!this.landmarkSeen && distance(x, y, this.landmark.x, this.landmark.y) < 260) {
+            this.landmarkSeen = true;
+            this.toast(LANDMARKS[this.landmark.kind].seen);
+        }
+        if (dry && !this.toldDry && this.weather.cold > 1) {
+            this.toldDry = true;
+            this.toast('Out of the rain for a while.');
+        }
+    }
+
     // F eats the best food in your pack.
     eatSnack() {
         const upgrades = this.save.upgrades;
@@ -527,4 +604,13 @@ export class ValleyScene extends Phaser.Scene {
             onComplete: () => text.destroy(),
         });
     }
+}
+
+// "+1 Torch · +2 Amber · +30 Food"
+function describeFind({ take, food }) {
+    const counts = new Map();
+    for (const item of take) counts.set(item, (counts.get(item) ?? 0) + 1);
+    const parts = [...counts].map(([item, n]) => `+${n} ${ITEMS[item].label}`);
+    if (food) parts.push(`+${food} Food`);
+    return parts.join(' · ');
 }

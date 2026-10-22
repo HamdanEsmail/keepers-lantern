@@ -8,6 +8,7 @@
 //   ?pack=a,b     start with these items in your pack
 //   ?time=0.7     start at this point in the day (0 dawn, 0.6 dusk, 0.75 night)
 //   ?meters=f,w,l start with this much food, warmth and lantern fuel
+//   ?seed=3       start a different save, so you get different valleys
 //   ?weather=rain,wolf-moon  force the weather on every run (any of rain, fog, clear,
 //                 full-moon, wolf-moon, normal; leave one out to keep it normal)
 //
@@ -90,6 +91,12 @@ export function setupDev(scene) {
     current = scene;
 }
 
+// ?seed=3 starts a different save. 1 (the normal one) if not asked for.
+export function devSeed() {
+    const seed = Number(new URLSearchParams(location.search).get('seed'));
+    return Number.isInteger(seed) && seed > 0 ? seed : 1;
+}
+
 // ?weather=fog,full-moon gives that weather, on every run while testing. null if not asked for.
 export function devWeather() {
     const q = new URLSearchParams(location.search);
@@ -165,6 +172,13 @@ export function reportDev(scene) {
         target: scene.interactions.target?.id ?? null,
         weather: `${scene.weather.sky},${scene.weather.moon}`,
         critters: scene.critters.report(),
+        landmark: scene.landmark && {
+            kind: scene.landmark.kind,
+            x: Math.round(scene.landmark.x),
+            y: Math.round(scene.landmark.y),
+            items: scene.landmark.items,
+            food: scene.landmark.food,
+        },
     };
     // Later systems add their own numbers through scene.devExtra().
     if (scene.devExtra) Object.assign(state, scene.devExtra());

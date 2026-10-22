@@ -11,6 +11,7 @@ const ART = {
     player: 48, wolf: 64, 'wolf-lying': 64, arrow: 32,
     torch: 48, 'torch-lit': 64, fish: 48, meal: 48,
     deer: 64, rabbit: 40, bird: 36, 'bird-fly': 36,
+    'hollow-tree': 144, 'standing-stone': 64, boulder: 128,
 };
 
 export class BootScene extends Phaser.Scene {

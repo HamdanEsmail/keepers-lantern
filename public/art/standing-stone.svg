@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <ellipse cx="33" cy="56" rx="15" ry="4.4" fill="#132019" opacity="0.5"/>
+  <path d="M21 56 Q 19 34 23 16 Q 26 7 33 6.6 Q 40 7.4 42 16 Q 45 34 44 56 Q 33 59 21 56 Z" fill="#8a8f86"/>
+  <path d="M21 56 Q 19 34 23 16 Q 26 7 33 6.6 Q 40 7.4 42 16 Q 45 34 44 56 Q 33 59 21 56 Z" fill="#132019" opacity="0.3"/>
+  <path d="M23 54 Q 21.4 34 25 17 Q 28 9.4 33 9 Q 37.6 9.6 39.4 16 Q 34 24 32 36 Q 30 46 31 55.6 Q 26 55.6 23 54 Z" fill="#8a8f86"/>
+  <path d="M26 20 Q 29 12 33 11.4" stroke="#a3a59a" stroke-width="2" fill="none" opacity="0.8"/>
+  <path d="M36 22 L34 30 L37 36" stroke="#4f544c" stroke-width="1" fill="none" opacity="0.7"/>
+  <!-- moss -->
+  <path d="M33 7 Q 40 7.6 42 15 Q 37 12 31 12.4 Q 30 9 33 7 Z" fill="#4c6e57"/>
+  <path d="M20.6 50 Q 26 46 30 50 Q 28 56 21 56 Z" fill="#4c6e57" opacity="0.9"/>
+  <circle cx="38" cy="52" r="2" fill="#5f9466" opacity="0.8"/>
+  <circle cx="24.6" cy="48" r="1.2" fill="#5f9466" opacity="0.8"/>
+</svg>
