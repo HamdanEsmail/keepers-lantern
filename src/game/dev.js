@@ -164,6 +164,7 @@ export function reportDev(scene) {
         toast: scene.devToast ?? null,
         target: scene.interactions.target?.id ?? null,
         weather: `${scene.weather.sky},${scene.weather.moon}`,
+        critters: scene.critters.report(),
     };
     // Later systems add their own numbers through scene.devExtra().
     if (scene.devExtra) Object.assign(state, scene.devExtra());

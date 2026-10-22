@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <ellipse cx="15" cy="27.4" rx="10" ry="2.4" fill="#132019" opacity="0.45"/>
+  <!-- far ear -->
+  <path d="M18.6 12 Q 17.2 4.6 19.4 3 Q 21.2 4.4 20.6 12 Z" fill="#7a6a54"/>
+  <!-- body -->
+  <path d="M6.6 22 Q 6 14.6 13 13.6 Q 19 13.4 20.4 18 Q 21.6 23.4 18 26 L9.4 26.4 Q 6.8 25.4 6.6 22 Z" fill="#a08d72"/>
+  <path d="M7.2 20 Q 8 15 13 14.4 Q 17.4 14.2 19 16.6 Q 13 16.4 7.2 20.6 Z" fill="#857358"/>
+  <path d="M8.6 23.6 Q 12 21 15.6 22.6 Q 14 25.6 10 26 Q 8.4 25.4 8.6 23.6 Z" fill="#857358" opacity="0.8"/>
+  <!-- tail -->
+  <circle cx="6.4" cy="21.4" r="2.4" fill="#f3e7c9"/>
+  <!-- head -->
+  <path d="M16.4 14.4 Q 17 9.6 21.4 9.6 Q 25.4 10 25.8 13.6 Q 25.4 16.6 21.6 17.2 Q 17.6 17.4 16.4 14.4 Z" fill="#a08d72"/>
+  <!-- near ear -->
+  <path d="M19.4 11 Q 19.6 3.4 22.2 2.4 Q 23.6 4.2 21.6 11.2 Z" fill="#a08d72"/>
+  <path d="M20.4 9.6 Q 20.8 5 22 4 Q 22.4 6 21.4 9.8 Z" fill="#d9a89a" opacity="0.7"/>
+  <circle cx="22.6" cy="12.4" r="0.95" fill="#132019"/>
+  <circle cx="22.85" cy="12.15" r="0.3" fill="#f3e7c9" opacity="0.8"/>
+  <circle cx="25.4" cy="13.8" r="0.6" fill="#6e4a3a"/>
+  <!-- chest and front paws -->
+  <path d="M16 22.6 Q 18.4 18.6 20.6 19.6 Q 21 23.6 18.6 25.4 Q 16.6 25 16 22.6 Z" fill="#d8ccb6" opacity="0.8"/>
+  <ellipse cx="19.4" cy="26.1" rx="2.2" ry="0.9" fill="#857358"/>
+</svg>

@@ -26,6 +26,7 @@ import {
 import { Darkness } from '../game/darkness.js';
 import { WolfPack } from '../game/wolves.js';
 import { Sky } from '../game/sky.js';
+import { Critters } from '../game/critters.js';
 import { ITEMS } from '../data/items.js';
 import { WORLD, CAMP, distance, ringAt } from '../logic/world.js';
 import { setupDev, readDevInput, reportDev, devWeather } from '../game/dev.js';
@@ -84,6 +85,8 @@ export class ValleyScene extends Phaser.Scene {
         this.weather = (import.meta.env.DEV && devWeather()) || weatherFor(this.save.baseSeed, this.save.run);
         // Told once you've woken up, not while the screen is still fading in.
         this.dawnToast = this.weather.dawnToast;
+        // Deer, rabbits and birds, until the light goes.
+        this.critters = new Critters(this, this.save.baseSeed + this.save.run);
 
         // Every run starts at dawn, fed and warm, with a full lantern.
         this.t = 0;
@@ -171,6 +174,7 @@ export class ValleyScene extends Phaser.Scene {
         const moving = dir.x !== 0 || dir.y !== 0;
         const sprinting = moving && (this.dev?.shift ?? this.keys.SHIFT.isDown);
         updatePlayer(this.player, dir, speedFor({ inStream: this.inStream(), sprinting }));
+        this.critters.update(dt, { px: this.player.x, py: this.player.y, sprinting, phase });
 
         // T plants a torch from your pack.
         const plantPressed = this.dev?.tPressed || Phaser.Input.Keyboard.JustDown(this.keys.T);
