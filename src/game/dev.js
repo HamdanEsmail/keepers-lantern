@@ -6,13 +6,21 @@
 //   ?walk=dx,dy   keep walking in one direction without touching the keys
 //   ?physics      show the invisible solid circles
 //   ?pack=a,b     start with these items in your pack
+//   ?time=0.7     start at this point in the day (0 dawn, 0.6 dusk, 0.75 night)
+//   ?meters=f,w,l start with this much food, warmth and lantern fuel
+//
+// Keys:
+//   N             jump to dusk, or from dusk to night
 //
 // From the browser console you can also steer the game while it runs:
 //   document.documentElement.dataset.devWalk = '1,0'   walk right ('' to stop)
 //   document.documentElement.dataset.devE = '1'        hold E ('' to let go)
+//   document.documentElement.dataset.devTime = '0.75'  jump to that point in the day
 //   window.dispatchEvent(new Event('dev-step'))        run one second of game time,
 //                                                      even if the tab is hidden
 // After every frame, document.documentElement.dataset.devState holds a summary of the game.
+
+import { DAY_LENGTH, DUSK_AT, NIGHT_AT } from '../logic/clock.js';
 
 const html = document.documentElement;
 let current = null;
@@ -31,14 +39,30 @@ export function setupDev(scene) {
     }
     // ?pack=wood,stone  start with these in your pack.
     if (q.has('pack') && !current) scene.pack = q.get('pack').split(',').filter(Boolean);
+    if (q.has('time') && !current) scene.t = Number(q.get('time')) * DAY_LENGTH;
+    // ?meters=50,30,20  start with this much food, warmth and fuel.
+    if (q.has('meters') && !current) {
+        const [food, warmth, fuel] = q.get('meters').split(',').map(Number);
+        scene.meters = { food, warmth, fuel };
+    }
     if (q.has('physics')) {
         scene.physics.world.createDebugGraphic();
         scene.physics.world.drawDebug = true;
     }
-    // Remember the last message, so a test can read it from devState.
-    scene.events.on('toast', (message) => {
-        scene.devToast = message;
+
+    // N skips ahead to the evening, so you don't wait five minutes to test the night.
+    scene.input.keyboard.on('keydown-N', () => {
+        if (scene.t < DUSK_AT) scene.t = DUSK_AT;
+        else if (scene.t < NIGHT_AT) scene.t = NIGHT_AT;
     });
+
+    // Remember the last message, so a test can read it from devState.
+    // Scene events outlive a restart, so stop listening when this valley ends.
+    const onToast = (message) => {
+        scene.devToast = message;
+    };
+    scene.events.on('toast', onToast);
+    scene.events.once('shutdown', () => scene.events.off('toast', onToast));
 
     // Only one listener for the whole page, pointed at whichever valley is running now.
     if (!current) {
@@ -65,16 +89,27 @@ export function readDevInput(scene) {
         scene.dev.dir = null;
     }
     scene.dev.eDown = html.dataset.devE ? true : null;
+
+    if (html.dataset.devTime) {
+        scene.t = Number(html.dataset.devTime) * DAY_LENGTH;
+        delete html.dataset.devTime;
+    }
 }
 
 // Called at the end of every frame.
 export function reportDev(scene) {
     const p = scene.player;
+    const round = (n) => Math.round(n * 10) / 10;
+    const m = scene.meters;
     const state = {
         x: Math.round(p.x),
         y: Math.round(p.y),
         speed: Math.round(p.body.speed),
         inStream: scene.inStream(),
+        t: round(scene.t),
+        phase: scene.phase,
+        meters: { food: round(m.food), warmth: round(m.warmth), fuel: round(m.fuel) },
+        nearFire: scene.nearFire(),
         pack: scene.pack,
         toast: scene.devToast ?? null,
         target: scene.interactions.target?.id ?? null,

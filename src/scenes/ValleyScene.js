@@ -6,13 +6,24 @@ import { Interactions } from '../game/interactions.js';
 import { readMove, inStream } from '../logic/move.js';
 import { addToPack, capacity } from '../logic/pack.js';
 import { newSave } from '../logic/save.js';
+import { phaseAt } from '../logic/clock.js';
+import { tickSurvival, startMeters, maxFuel, eat, foodValue } from '../logic/survival.js';
 import { ITEMS } from '../data/items.js';
-import { WORLD, CAMP } from '../logic/world.js';
+import { WORLD, CAMP, distance } from '../logic/world.js';
 import { setupDev, readDevInput, reportDev } from '../game/dev.js';
 
 // How close you must be to gather something, and how long to hold E.
 const GATHER_REACH = 56;
 const GATHER_TIME = 1.2;
+
+// Above this much food, eating would waste it, so the berries stay.
+const FULL_ENOUGH = 95;
+
+// What the valley tells you when the light changes.
+const PHASE_TOASTS = {
+    dusk: 'The light is going. Your lantern is lit.',
+    night: 'Night. Stay inside the light.',
+};
 
 export class ValleyScene extends Phaser.Scene {
     constructor() {
@@ -32,6 +43,11 @@ export class ValleyScene extends Phaser.Scene {
         });
         this.view = drawValley(this, this.valley);
         this.pack = [];
+
+        // Every run starts at dawn, fed and warm, with a full lantern.
+        this.t = 0;
+        this.phase = phaseAt(0);
+        this.meters = startMeters(this.save.upgrades);
 
         // Start beside the fire, not in it: the fire is solid.
         this.physics.world.setBounds(0, 0, WORLD.width, WORLD.height);
@@ -62,6 +78,16 @@ export class ValleyScene extends Phaser.Scene {
         const dt = Math.min(delta / 1000, 0.1);
 
         if (import.meta.env.DEV) readDevInput(this);
+
+        this.t += dt;
+        const phase = phaseAt(this.t);
+        if (phase !== this.phase) {
+            this.phase = phase;
+            if (PHASE_TOASTS[phase]) this.toast(PHASE_TOASTS[phase]);
+        }
+        const upgrades = this.save.upgrades;
+        this.meters = tickSurvival(this.meters, dt, { phase, nearFire: this.nearFire(), upgrades });
+
         const dir = this.dev?.dir ?? readMove(this.keys);
         const speedMul = this.inStream() ? 0.6 : 1;
         updatePlayer(this.player, dir, speedMul);
@@ -71,9 +97,9 @@ export class ValleyScene extends Phaser.Scene {
 
         this.events.emit('hud', {
             day: this.save.run + 1,
-            phase: 'day',
-            meters: null,
-            maxFuel: 100,
+            phase,
+            meters: this.meters,
+            maxFuel: maxFuel(upgrades),
             pack: this.pack,
             cap: capacity(this.save.upgrades),
             prompt,
@@ -85,6 +111,11 @@ export class ValleyScene extends Phaser.Scene {
 
     inStream() {
         return inStream(this.valley.stream, this.player.x, this.player.y);
+    }
+
+    // Close enough to the camp fire to warm up. The wolves won't come this close either.
+    nearFire() {
+        return distance(this.player.x, this.player.y, CAMP.x, CAMP.y) < CAMP.safeRadius;
     }
 
     toast(message) {
@@ -108,8 +139,13 @@ export class ValleyScene extends Phaser.Scene {
     gather(node) {
         const item = ITEMS[node.kind];
         if (item.gather === 'eat') {
-            // Lesson 6 (food) replaces this.
-            this.toast('Not hungry yet.');
+            if (this.meters.food >= FULL_ENOUGH) {
+                // Leave it for later instead of wasting it.
+                this.toast('Not hungry yet.');
+                return;
+            }
+            this.meters = eat(this.meters, node.kind);
+            this.removeNode(node, `+${foodValue(node.kind)} Food`);
             return;
         }
         const result = addToPack(this.pack, node.kind, capacity(this.save.upgrades));
