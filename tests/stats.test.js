@@ -69,6 +69,7 @@ it('notices nights, close calls and a full pack', () => {
     expect(ids).toEqual(expect.arrayContaining(['after-dark', 'long-night', 'close-call', 'full-pack']));
     expect(newMilestones({ ...newStats(), nightsSurvived: 1 }, run())).toContain('first-dawn');
     expect(newMilestones(newStats(), run({ torches: 1 }))).toEqual(['torch-night']);
+    expect(newMilestones(newStats(), run({ cooked: 2 }))).toEqual(['hot-meal']);
 });
 
 it('earns nothing on a quiet first morning', () => {

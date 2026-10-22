@@ -6,6 +6,7 @@ import { Interactions } from '../game/interactions.js';
 import { readMove, inStream, speedFor } from '../logic/move.js';
 import { addToPack, takeFromPack, capacity } from '../logic/pack.js';
 import { plantTorch, torchRadius, liveTorches, canPlant, inTorchLight, shelterDistance } from '../logic/torches.js';
+import { gatherTime, gatherCount, gatherMode, cookAll, eatFromPack } from '../logic/tools.js';
 import { newSave } from '../logic/save.js';
 import { afterRun } from '../logic/run.js';
 import { newStats, newRunSummary, newMilestones, earn, milestoneLabel, deeper } from '../logic/stats.js';
@@ -28,8 +29,8 @@ import { WORLD, CAMP, distance, ringAt } from '../logic/world.js';
 import { setupDev, readDevInput, reportDev } from '../game/dev.js';
 
 // How close you must be to gather something, and how long to hold E.
+// (The hold time is in logic/tools.js, since the axe changes it.)
 const GATHER_REACH = 56;
-const GATHER_TIME = 1.2;
 
 // Above this much food, eating would waste it, so the berries stay.
 const FULL_ENOUGH = 95;
@@ -99,10 +100,11 @@ export class ValleyScene extends Phaser.Scene {
         this.player = createPlayer(this, CAMP.x + 50, CAMP.y + 40);
         this.physics.add.collider(this.player, this.view.solids);
 
-        this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,E,SHIFT,SPACE,T');
+        this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,E,SHIFT,SPACE,T,F');
 
         this.interactions = new Interactions(this);
         for (const node of this.valley.nodes) this.addNode(node);
+        this.addFire();
 
         const camera = this.cameras.main;
         camera.setBounds(0, 0, WORLD.width, WORLD.height);
@@ -158,6 +160,8 @@ export class ValleyScene extends Phaser.Scene {
         // T plants a torch from your pack.
         const plantPressed = this.dev?.tPressed || Phaser.Input.Keyboard.JustDown(this.keys.T);
         if (plantPressed) this.plantTorchHere();
+        // F eats from the pack.
+        if (this.dev?.fPressed || Phaser.Input.Keyboard.JustDown(this.keys.F)) this.eatSnack();
         this.updateTorches();
         const sheltered = inTorchLight(this.torches, this.player.x, this.player.y, this.t);
 
@@ -371,42 +375,95 @@ export class ValleyScene extends Phaser.Scene {
     }
 
     // Something growing in the valley that you can gather.
+    // The hold time and the words depend on your tools, which can change during a run.
     addNode(node) {
         const item = ITEMS[node.kind];
+        const upgrades = () => this.save.upgrades;
         this.interactions.add({
             id: node.id,
             x: node.x,
             y: node.y,
             radius: GATHER_REACH,
-            hold: GATHER_TIME,
-            prompt: `${item.gather === 'eat' ? 'Eat' : 'Gather'} ${item.label}`,
+            hold: () => gatherTime(node.kind, upgrades()),
+            prompt: () => {
+                if (gatherMode(node.kind, upgrades()) === 'eat') return `Eat ${item.label}`;
+                return `${node.kind === 'fish' ? 'Catch' : 'Gather'} ${item.label}`;
+            },
             use: () => this.gather(node),
         });
     }
 
     gather(node) {
         const item = ITEMS[node.kind];
-        if (item.gather === 'eat') {
+        const upgrades = this.save.upgrades;
+        if (gatherMode(node.kind, upgrades) === 'eat') {
             if (this.meters.food >= FULL_ENOUGH) {
                 // Leave it for later instead of wasting it.
                 this.toast('Not hungry yet.');
                 return;
             }
-            this.meters = eat(this.meters, node.kind);
+            this.meters = eat(this.meters, node.kind, upgrades);
             this.summary.eaten += 1;
-            this.removeNode(node, `+${foodValue(node.kind)} Food`);
+            this.removeNode(node, `+${foodValue(node.kind, upgrades)} Food`);
             return;
         }
-        const result = addToPack(this.pack, node.kind, capacity(this.save.upgrades));
-        if (!result.added) {
+
+        // With the axe, wood comes two at a time (or one, if that's all the room you have).
+        const cap = capacity(upgrades);
+        let added = 0;
+        for (let i = 0; i < gatherCount(node.kind, upgrades); i++) {
+            const result = addToPack(this.pack, node.kind, cap);
+            if (!result.added) break;
+            this.pack = result.pack;
+            added += 1;
+        }
+        if (!added) {
             // The node stays where it is, so nothing is lost.
             this.toast('Your pack is full.');
             return;
         }
+        this.summary.gathered += added;
+        if (this.pack.length >= cap) this.summary.packFilled = true;
+        this.removeNode(node, `+${added} ${item.label}`);
+    }
+
+    // The camp fire: E cooks every raw fish in your pack.
+    addFire() {
+        const fishCount = () => this.pack.filter((item) => item === 'fish').length;
+        this.interactions.add({
+            id: 'fire',
+            x: CAMP.x,
+            y: CAMP.y,
+            radius: 80,
+            hold: 1,
+            prompt: () => `Cook ${fishCount()} Fish`,
+            isActive: () => fishCount() > 0,
+            use: () => {
+                const result = cookAll(this.pack);
+                this.pack = result.pack;
+                this.summary.cooked += result.cooked;
+                this.floatText(CAMP.x, CAMP.y - 40, `${result.cooked} ${result.cooked === 1 ? 'meal' : 'meals'}`);
+                if (this.save.stats.runs < 3) this.toast('Press F to eat from your pack.');
+            },
+        });
+    }
+
+    // F eats the best food in your pack.
+    eatSnack() {
+        const upgrades = this.save.upgrades;
+        if (!this.pack.some((item) => item === 'meal' || item === 'fish')) {
+            this.toast('Nothing to eat in your pack.');
+            return;
+        }
+        if (this.meters.food >= FULL_ENOUGH) {
+            this.toast('Not hungry yet.');
+            return;
+        }
+        const result = eatFromPack(this.meters, this.pack, upgrades);
+        this.meters = result.meters;
         this.pack = result.pack;
-        this.summary.gathered += 1;
-        if (this.pack.length >= capacity(this.save.upgrades)) this.summary.packFilled = true;
-        this.removeNode(node, `+1 ${item.label}`);
+        this.summary.eaten += 1;
+        this.floatText(this.player.x, this.player.y - 50, `+${result.value} Food`);
     }
 
     // Take a node out of the valley with a little pop and a floating label.

@@ -19,6 +19,7 @@
 //   document.documentElement.dataset.devShift = '1'    hold Shift (sprint)
 //   document.documentElement.dataset.devSpace = '1'    hold Space (flare)
 //   document.documentElement.dataset.devT = '1'        press T once (plant a torch)
+//   document.documentElement.dataset.devF = '1'        press F once (eat from the pack)
 //   document.documentElement.dataset.devGrant = '1'    same as the U key
 //   document.documentElement.dataset.devTime = '0.75'  jump to that point in the day
 //   window.dispatchEvent(new Event('dev-step'))        run one second of game time,
@@ -110,6 +111,8 @@ export function readDevInput(scene) {
     // One-shot presses: they happen once, then clear themselves.
     scene.dev.tPressed = Boolean(html.dataset.devT);
     delete html.dataset.devT;
+    scene.dev.fPressed = Boolean(html.dataset.devF);
+    delete html.dataset.devF;
     if (html.dataset.devGrant) {
         delete html.dataset.devGrant;
         grantAll(scene);

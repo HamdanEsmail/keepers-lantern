@@ -20,7 +20,7 @@ const GAP = 6;
 // Which picture shows an item in the pack.
 export function iconFor(item) {
     if (item.startsWith('lens-')) return 'lens';
-    return ITEMS[item]?.art ?? item;
+    return ITEMS[item]?.icon ?? ITEMS[item]?.art ?? item;
 }
 
 export class HudScene extends Phaser.Scene {

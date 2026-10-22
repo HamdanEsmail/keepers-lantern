@@ -12,8 +12,9 @@ const FLARE_GROWTH = 0.5; // a full flare makes the light this much bigger
 const FLARE_UP = 4; // how fast a flare swells, per second (full in 0.25 s)
 const FLARE_DOWN = 3; // and how fast it dies down
 
-// What each food is worth.
-const FOOD_VALUE = { berries: 20, fish: 35 };
+// What each food is worth. A meal is a fish cooked at the fire.
+const FOOD_VALUE = { berries: 20, fish: 35, meal: 50 };
+const COOKING_FIRE_MEAL = 70;
 
 export function maxFuel(upgrades) {
     return upgrades.includes('lantern') ? 150 : 100;
@@ -53,12 +54,13 @@ export function tickSurvival(meters, dt, opts) {
     };
 }
 
-export function foodValue(kind) {
+export function foodValue(kind, upgrades = []) {
+    if (kind === 'meal' && upgrades.includes('cooking-fire')) return COOKING_FIRE_MEAL;
     return FOOD_VALUE[kind] ?? 0;
 }
 
-export function eat(meters, kind) {
-    return { ...meters, food: Math.min(100, meters.food + foodValue(kind)) };
+export function eat(meters, kind, upgrades = []) {
+    return { ...meters, food: Math.min(100, meters.food + foodValue(kind, upgrades)) };
 }
 
 // Running out of food or warmth ends the run. Running out of fuel doesn't,
