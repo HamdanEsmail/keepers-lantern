@@ -34,10 +34,11 @@ export class Darkness {
         });
     }
 
-    // alpha: how dark it is, 0 to MAX_DARKNESS.
+    // alpha: how dark it is, 0 to max.
     // lights: [{ x, y, r, warm }] in world positions. r is where the light fades to nothing.
     // warm (optional, 0 to 1) tints the ground orange inside that light, like a flame would.
-    update(alpha, lights) {
+    // max and color (optional) are how dark tonight gets and its colour: the moon changes both.
+    update(alpha, lights, { max = MAX_DARKNESS, color = NIGHT_COLOR } = {}) {
         const dark = alpha > 0.001;
         this.sheet.setVisible(dark);
         if (!dark) return;
@@ -49,9 +50,9 @@ export class Darkness {
         const top = cam.scrollY - MARGIN;
         this.sheet.setPosition(left, top);
 
-        const night = Math.min(1, alpha / MAX_DARKNESS);
+        const night = Math.min(1, alpha / max);
         this.sheet.clear();
-        this.sheet.fill(mixColor(DUSK_COLOR, NIGHT_COLOR, night), alpha);
+        this.sheet.fill(mixColor(DUSK_COLOR, color, night), alpha);
 
         // Brushes draw onto the sheet, whose top-left corner is at (left, top) in the world.
         const holes = [];

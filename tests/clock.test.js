@@ -35,3 +35,9 @@ it('never gets lighter as dusk goes on', () => {
         last = d;
     }
 });
+
+it('a lighter night only gets as dark as it is told', () => {
+    expect(darknessAt(NIGHT_AT + 10, 0.7)).toBe(0.7);
+    expect(darknessAt((DUSK_AT + NIGHT_AT) / 2, 0.7)).toBeCloseTo(0.35);
+    expect(darknessAt(0, 0.7)).toBe(0);
+});

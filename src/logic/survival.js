@@ -30,13 +30,14 @@ function clamp(value, max) {
 
 // flare (0 to 1) is how hard you're flaring the lantern with Space. See stepFlare.
 // sheltered means standing in a torch's light.
+// cold makes you lose warmth faster (1.5 in the rain, see weather.js).
 export function tickSurvival(meters, dt, opts) {
-    const { phase, nearFire, upgrades, sprinting = false, flare = 0, sheltered = false } = opts;
+    const { phase, nearFire, upgrades, sprinting = false, flare = 0, sheltered = false, cold = 1 } = opts;
     // A hidden tab can leave a huge gap between frames. Don't punish it.
     dt = Math.min(dt, 0.1);
 
     const hungerMul = (upgrades.includes('cooking-fire') ? 0.75 : 1) * (sprinting ? SPRINT_HUNGER : 1);
-    const coldMul = upgrades.includes('coat') ? 0.6 : 1;
+    const coldMul = (upgrades.includes('coat') ? 0.6 : 1) * cold;
 
     const food = meters.food - FOOD_LOSS * hungerMul * dt;
     let warmth = meters.warmth - WARMTH_LOSS[phase] * coldMul * dt;

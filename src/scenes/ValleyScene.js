@@ -11,6 +11,7 @@ import { newSave } from '../logic/save.js';
 import { afterRun } from '../logic/run.js';
 import { newStats, newRunSummary, newMilestones, earn, milestoneLabel, deeper } from '../logic/stats.js';
 import { phaseAt, darknessAt } from '../logic/clock.js';
+import { weatherFor, weatherLabel } from '../logic/weather.js';
 import {
     tickSurvival,
     startMeters,
@@ -24,9 +25,10 @@ import {
 } from '../logic/survival.js';
 import { Darkness } from '../game/darkness.js';
 import { WolfPack } from '../game/wolves.js';
+import { Sky } from '../game/sky.js';
 import { ITEMS } from '../data/items.js';
 import { WORLD, CAMP, distance, ringAt } from '../logic/world.js';
-import { setupDev, readDevInput, reportDev } from '../game/dev.js';
+import { setupDev, readDevInput, reportDev, devWeather } from '../game/dev.js';
 
 // How close you must be to gather something, and how long to hold E.
 // (The hold time is in logic/tools.js, since the axe changes it.)
@@ -78,6 +80,11 @@ export class ValleyScene extends Phaser.Scene {
         this.view = drawValley(this, this.valley);
         this.pack = [];
 
+        // The sky and the night are different every run too (see weather.js).
+        this.weather = (import.meta.env.DEV && devWeather()) || weatherFor(this.save.baseSeed, this.save.run);
+        // Told once you've woken up, not while the screen is still fading in.
+        this.dawnToast = this.weather.dawnToast;
+
         // Every run starts at dawn, fed and warm, with a full lantern.
         this.t = 0;
         this.phase = phaseAt(0);
@@ -91,7 +98,7 @@ export class ValleyScene extends Phaser.Scene {
 
         // What happens this run, for the stats and milestones.
         if (!this.save.stats) this.save = { ...this.save, stats: newStats() };
-        this.summary = newRunSummary();
+        this.summary = { ...newRunSummary(), moon: this.weather.moon };
         this.milestoneClock = 0;
         this.rushed = false;
 
@@ -118,6 +125,7 @@ export class ValleyScene extends Phaser.Scene {
         this.darkness = new Darkness(this);
         this.lightR = lightRadius(this.meters.fuel, this.save.upgrades);
         this.wolves = new WolfPack(this);
+        this.sky = new Sky(this, this.weather);
 
         // After a lost run, wake up slowly instead of popping in.
         if (this.save.run > 0) camera.fadeIn(900, ...FADE);
@@ -137,6 +145,7 @@ export class ValleyScene extends Phaser.Scene {
         if (this.ending) {
             // The run is over. Stand still while the screen fades out.
             updatePlayer(this.player, STILL, 1);
+            this.sky.update(dt);
             this.updateLight();
             this.emitHud(null);
             if (import.meta.env.DEV) reportDev(this);
@@ -144,10 +153,16 @@ export class ValleyScene extends Phaser.Scene {
         }
 
         this.t += dt;
+        if (this.dawnToast && this.t >= 1) {
+            this.toast(this.dawnToast);
+            this.dawnToast = null;
+        }
         const phase = phaseAt(this.t);
         if (phase !== this.phase) {
             this.phase = phase;
             if (PHASE_TOASTS[phase]) this.toast(PHASE_TOASTS[phase]);
+            // A strange night is told at dusk, so you have time to get ready for it.
+            if (phase === 'dusk' && this.weather.duskToast) this.toast(this.weather.duskToast);
             // For the first few runs, remind new players what they can do about the dark.
             if (phase === 'dusk' && this.save.stats.runs < 3) this.toast(DUSK_HINT);
         }
@@ -178,11 +193,13 @@ export class ValleyScene extends Phaser.Scene {
             sprinting,
             flare: this.flare,
             sheltered,
+            cold: this.weather.cold,
         });
 
         const eDown = this.dev?.eDown ?? this.keys.E.isDown;
         const prompt = this.interactions.update(dt, eDown, this.player.x, this.player.y);
 
+        this.sky.update(dt);
         this.updateLight();
         this.updateNight(dt, phase);
         if (!this.ending && isSpent(this.meters)) this.endRun('spent');
@@ -205,6 +222,7 @@ export class ValleyScene extends Phaser.Scene {
             cap: capacity(upgrades),
             prompt,
             lenses: this.save.lensDelivered.length,
+            weather: weatherLabel(this.weather, this.phase),
         });
     }
 
@@ -229,9 +247,10 @@ export class ValleyScene extends Phaser.Scene {
         }
 
         if (phase === 'night' && !this.wolves.active) {
-            // More of them, the further out you are when night falls.
+            // More of them, the further out you are when night falls, and the moon changes it too.
             const ring = ringAt(x, y);
-            this.wolves.spawn(ring === 'deep' || ring === 'outside' ? 3 : 2, this.player);
+            const count = (ring === 'deep' || ring === 'outside' ? 3 : 2) + this.weather.wolves;
+            this.wolves.spawn(Math.max(1, count), this.player);
             if (this.pack.includes('torch')) this.toast('Press T to plant a torch.');
         }
         if (phase === 'night') {
@@ -247,6 +266,8 @@ export class ValleyScene extends Phaser.Scene {
             dim: dim && this.flare < 0.5,
             playerAtCamp: atCamp,
             shelter: shelterDistance(this.torches, x, y, this.t),
+            gap: this.weather.wolfGap,
+            speed: this.weather.wolfSpeed,
         });
         if (caught) {
             this.endRun('caught');
@@ -297,10 +318,11 @@ export class ValleyScene extends Phaser.Scene {
         return inStream(this.valley.stream, this.player.x, this.player.y);
     }
 
-    // The lantern shrinks as its fuel runs down. Both flames flicker a little.
+    // The lantern shrinks as its fuel runs down, and fog swallows some of it. The flames flicker a little.
     updateLight() {
         const t = this.t;
-        this.lightR = flaredRadius(lightRadius(this.meters.fuel, this.save.upgrades), this.flare);
+        const lantern = lightRadius(this.meters.fuel, this.save.upgrades) * this.weather.lantern;
+        this.lightR = flaredRadius(lantern, this.flare);
         const lanternFlicker = 1 + 0.02 * Math.sin(t * 9) + 0.012 * Math.sin(t * 23);
         const fireFlicker = 1 + 0.03 * Math.sin(t * 7 + 1) + 0.015 * Math.sin(t * 17);
         // Each torch flickers on its own beat.
@@ -310,12 +332,13 @@ export class ValleyScene extends Phaser.Scene {
             r: torchRadius(torch, t) * (1 + 0.035 * Math.sin(t * 8 + torch.lit)),
             warm: 0.9,
         }));
-        this.darkness.update(darknessAt(t), [
+        const { darkness, nightColor } = this.weather;
+        this.darkness.update(darknessAt(t, darkness), [
             // The lantern is carried at chest height, not at the feet.
             { x: this.player.x, y: this.player.y - 20, r: this.lightR * lanternFlicker, warm: 1 + this.flare },
             { x: CAMP.x, y: CAMP.y - 10, r: CAMP_LIGHT * fireFlicker, warm: 1 },
             ...torchLights,
-        ]);
+        ], { max: darkness, color: nightColor });
     }
 
     // Plant a torch from the pack, just in front of you.

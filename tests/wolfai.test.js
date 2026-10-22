@@ -48,3 +48,12 @@ it('gives you a few seconds of warning before it reaches you', () => {
     expect(secs).toBeGreaterThan(4);
     expect(w.dist).toBeLessThan(WOLF_CATCH_DIST);
 });
+
+it('a wolf moon brings them closer, and faster', () => {
+    expect(run(ctx({ gap: 40 }), 20).dist).toBeCloseTo(260, 0);
+    // A torch still holds them back, at the closer gap.
+    expect(wolfTarget(ctx({ gap: 40, shelter: 100 }))).toBe(260);
+    const slow = run(ctx(), 2);
+    const fast = run(ctx({ speed: 75 }), 2);
+    expect(600 - fast.dist).toBeCloseTo((600 - slow.dist) * 1.25);
+});

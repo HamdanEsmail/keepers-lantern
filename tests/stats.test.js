@@ -70,6 +70,8 @@ it('notices nights, close calls and a full pack', () => {
     expect(newMilestones({ ...newStats(), nightsSurvived: 1 }, run())).toContain('first-dawn');
     expect(newMilestones(newStats(), run({ torches: 1 }))).toEqual(['torch-night']);
     expect(newMilestones(newStats(), run({ cooked: 2 }))).toEqual(['hot-meal']);
+    expect(newMilestones(newStats(), run({ moon: 'wolf-moon', nightTime: 29 }))).not.toContain('wolf-moon');
+    expect(newMilestones(newStats(), run({ moon: 'wolf-moon', nightTime: 31 }))).toContain('wolf-moon');
 });
 
 it('earns nothing on a quiet first morning', () => {

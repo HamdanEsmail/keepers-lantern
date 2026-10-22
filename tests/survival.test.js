@@ -141,3 +141,13 @@ it('the light shrinks with the fuel', () => {
     expect(lightRadius(150, ['lantern'])).toBe(300);
     expect(lightRadius(50, [])).toBeLessThan(lightRadius(60, []));
 });
+
+it('rain makes you lose warmth faster, but not by the fire', () => {
+    const m = startMeters([]);
+    const dry = tickSurvival(m, 0.1, { phase: 'night', nearFire: false, upgrades: [] });
+    const wet = tickSurvival(m, 0.1, { phase: 'night', nearFire: false, upgrades: [], cold: 1.5 });
+    expect(100 - wet.warmth).toBeCloseTo((100 - dry.warmth) * 1.5);
+    const low = { ...m, warmth: 50 };
+    const fire = tickSurvival(low, 0.1, { phase: 'night', nearFire: true, upgrades: [], cold: 1.5 });
+    expect(fire.warmth).toBeGreaterThan(50);
+});

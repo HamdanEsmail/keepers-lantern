@@ -21,9 +21,10 @@ export function phaseAt(t) {
     return 'night';
 }
 
-// 0 in daylight, rising evenly through dusk, then MAX_DARKNESS all night.
-export function darknessAt(t) {
+// 0 in daylight, rising evenly through dusk, then `max` all night.
+// A full moon makes the night less dark (see weather.js).
+export function darknessAt(t, max = MAX_DARKNESS) {
     if (t < DUSK_AT) return 0;
-    if (t >= NIGHT_AT) return MAX_DARKNESS;
-    return (MAX_DARKNESS * (t - DUSK_AT)) / (NIGHT_AT - DUSK_AT);
+    if (t >= NIGHT_AT) return max;
+    return (max * (t - DUSK_AT)) / (NIGHT_AT - DUSK_AT);
 }

@@ -26,6 +26,7 @@ export function newRunSummary() {
         packFilled: false,
         torches: 0, // planted at dusk or night
         cooked: 0, // fish cooked at the fire
+        moon: 'normal', // tonight's moon (see weather.js)
     };
 }
 
@@ -59,6 +60,7 @@ export const MILESTONES = [
     { id: 'close-call', label: 'Close call', check: (s, r) => r.closeCalls > 0 },
     { id: 'torch-night', label: 'A torch in the dark', check: (s, r) => r.torches > 0 },
     { id: 'hot-meal', label: 'A hot meal', check: (s, r) => r.cooked > 0 },
+    { id: 'wolf-moon', label: 'Out under a wolf moon', check: (s, r) => r.moon === 'wolf-moon' && r.nightTime >= 30 },
     { id: 'forager', label: 'Fifty things gathered', check: (s, r) => s.gathered + r.gathered >= 50 },
     { id: 'well-fed', label: 'Fifteen good meals', check: (s, r) => s.eaten + r.eaten >= 15 },
     { id: 'first-dawn', label: 'You made it to morning', check: (s) => s.nightsSurvived >= 1 },

@@ -66,6 +66,8 @@ export class HudScene extends Phaser.Scene {
         g.fillRoundedRect(16, 16, 290, 124, 12);
 
         this.dayText = this.add.text(32, 26, '', this.textStyle(22));
+        // Today's weather, small, at the other end of the same line.
+        this.weatherText = this.add.text(290, 33, '', this.textStyle(14, { color: '#cdbf9f' })).setOrigin(1, 0);
         this.bars = METERS.map((m, i) => {
             const y = 66 + i * 24;
             this.add.text(32, y - 9, m.label, this.textStyle(14, { color: '#cdbf9f' }));
@@ -77,6 +79,7 @@ export class HudScene extends Phaser.Scene {
 
     onHud(state) {
         this.dayText.setText(`Day ${state.day} · ${PHASE_LABEL[state.phase] ?? ''}`);
+        this.weatherText.setText(state.weather ?? '');
 
         for (const b of this.bars) {
             const value = state.meters ? state.meters[b.key] : null;

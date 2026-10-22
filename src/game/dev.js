@@ -8,6 +8,8 @@
 //   ?pack=a,b     start with these items in your pack
 //   ?time=0.7     start at this point in the day (0 dawn, 0.6 dusk, 0.75 night)
 //   ?meters=f,w,l start with this much food, warmth and lantern fuel
+//   ?weather=rain,wolf-moon  force the weather on every run (any of rain, fog, clear,
+//                 full-moon, wolf-moon, normal; leave one out to keep it normal)
 //
 // Keys:
 //   N             jump to dusk, or from dusk to night
@@ -28,6 +30,7 @@
 
 import { DAY_LENGTH, DUSK_AT, NIGHT_AT } from '../logic/clock.js';
 import { capacity } from '../logic/pack.js';
+import { makeWeather, SKIES, MOONS } from '../logic/weather.js';
 
 const html = document.documentElement;
 let current = null;
@@ -85,6 +88,16 @@ export function setupDev(scene) {
         });
     }
     current = scene;
+}
+
+// ?weather=fog,full-moon gives that weather, on every run while testing. null if not asked for.
+export function devWeather() {
+    const q = new URLSearchParams(location.search);
+    if (!q.has('weather')) return null;
+    const asked = q.get('weather').split(',');
+    const sky = asked.find((w) => w in SKIES) ?? 'clear';
+    const moon = asked.find((w) => w in MOONS) ?? 'normal';
+    return makeWeather(sky, moon);
 }
 
 const ALL_UPGRADES = ['pack', 'lantern', 'coat', 'compass', 'cooking-fire', 'axe', 'fishing-line'];
@@ -150,6 +163,7 @@ export function reportDev(scene) {
         pack: scene.pack,
         toast: scene.devToast ?? null,
         target: scene.interactions.target?.id ?? null,
+        weather: `${scene.weather.sky},${scene.weather.moon}`,
     };
     // Later systems add their own numbers through scene.devExtra().
     if (scene.devExtra) Object.assign(state, scene.devExtra());
