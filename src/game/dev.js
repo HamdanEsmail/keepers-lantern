@@ -11,6 +11,7 @@
 //   ?seed=3       start a different save, so you get different valleys
 //   ?weather=rain,wolf-moon  force the weather on every run (any of rain, fog, clear,
 //                 full-moon, wolf-moon, normal; leave one out to keep it normal)
+//   ?play         skip the title screen (so do all the options above)
 //
 // Keys:
 //   N             jump to dusk, or from dusk to night
@@ -91,6 +92,15 @@ export function setupDev(scene) {
         });
     }
     current = scene;
+}
+
+// In dev, ?play or any of the options above skips the title screen and starts a fresh test game,
+// so testing stays quick. It still saves, so the title's Continue picks up that test game afterwards.
+const TITLE_SKIPPERS = ['play', 'at', 'walk', 'physics', 'pack', 'time', 'meters', 'seed', 'weather'];
+
+export function skipTitle() {
+    const q = new URLSearchParams(location.search);
+    return TITLE_SKIPPERS.some((option) => q.has(option));
 }
 
 // ?seed=3 starts a different save. 1 (the normal one) if not asked for.

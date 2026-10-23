@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { skipTitle } from '../game/dev.js';
 
 // Every picture in public/art, and the size in pixels to draw it at.
 const ART = {
@@ -34,7 +35,8 @@ export class BootScene extends Phaser.Scene {
     create() {
         this.makeLightTexture();
         this.makeVignetteTexture();
-        this.scene.start('valley');
+        // On to the title screen. While testing, an option in the address skips it (see dev.js).
+        this.scene.start(import.meta.env.DEV && skipTitle() ? 'valley' : 'title');
     }
     makeLightTexture() {
         const texture = this.textures.createCanvas('light', 256, 256);

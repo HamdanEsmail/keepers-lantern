@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import './style.css';
 import { BootScene } from './scenes/BootScene.js';
+import { TitleScene } from './scenes/TitleScene.js';
 import { ValleyScene } from './scenes/ValleyScene.js';
 import { HudScene } from './scenes/HudScene.js';
 
@@ -19,5 +20,5 @@ new Phaser.Game({
         arcade: { gravity: { x: 0, y: 0 }, debug: false },
     },
     // Scenes later in the list are drawn on top, so the HUD goes last.
-    scene: [BootScene, ValleyScene, HudScene],
+    scene: [BootScene, TitleScene, ValleyScene, HudScene],
 });

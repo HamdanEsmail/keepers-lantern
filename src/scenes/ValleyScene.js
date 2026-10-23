@@ -16,7 +16,7 @@ import {
     isEmpty,
     sheltersYou,
 } from '../logic/landmarks.js';
-import { newSave } from '../logic/save.js';
+import { newSave, writeSave, browserStorage } from '../logic/save.js';
 import { afterRun, wakeReport } from '../logic/run.js';
 import { newStats, newRunSummary, newMilestones, earn, milestoneLabel, deeper } from '../logic/stats.js';
 import { phaseAt, darknessAt } from '../logic/clock.js';
@@ -74,7 +74,7 @@ export class ValleyScene extends Phaser.Scene {
         super('valley');
     }
 
-    // Runs before create(). A restart passes the save along, so progress is kept.
+    // Runs before create(). The title screen, or a restart, passes the save along.
     init(data) {
         this.save = data?.save ?? newSave(import.meta.env.DEV ? devSeed() : 1);
     }
@@ -148,8 +148,8 @@ export class ValleyScene extends Phaser.Scene {
         this.wolves = new WolfPack(this);
         this.sky = new Sky(this, this.weather);
 
-        // After a lost run, wake up slowly instead of popping in.
-        if (this.save.run > 0) camera.fadeIn(900, ...FADE);
+        // Wake up slowly instead of popping in.
+        camera.fadeIn(900, ...FADE);
 
         // The HUD is its own scene, drawn on top of this one.
         if (!this.scene.isActive('hud')) this.scene.launch('hud');
@@ -325,6 +325,7 @@ export class ValleyScene extends Phaser.Scene {
         const ids = newMilestones(this.save.stats, this.summary);
         if (!ids.length) return;
         this.save = { ...this.save, stats: earn(this.save.stats, ids) };
+        this.persist();
         for (const id of ids) this.toast(`Milestone · ${milestoneLabel(id)}`);
     }
 
@@ -340,6 +341,7 @@ export class ValleyScene extends Phaser.Scene {
 
         this.save = afterRun(this.save, reason, this.pack, this.summary);
         this.pack = [];
+        this.persist();
 
         const camera = this.cameras.main;
         if (reason === 'caught') camera.shake(300, 0.008);
@@ -349,6 +351,11 @@ export class ValleyScene extends Phaser.Scene {
             await showMorning(report);
             this.scene.restart({ save: this.save });
         });
+    }
+
+    // Keep the game in the browser, so it's still there after you close the tab.
+    persist() {
+        writeSave(browserStorage(), this.save);
     }
 
     inStream() {
@@ -527,6 +534,8 @@ export class ValleyScene extends Phaser.Scene {
         const result = await openCamp(this.save, this.pack);
         this.save = result.save;
         this.pack = result.pack;
+        // Anything you unpacked or built is kept, even if you close the tab now.
+        this.persist();
         // Keys pressed while the panel was open shouldn't count once it closes. T would plant a torch.
         this.input.keyboard.resetKeys();
         if (result.action === 'sleep') this.endRun('slept');
