@@ -1,6 +1,7 @@
 import { makeRng, randRange } from '../logic/rng.js';
 import { WORLD, CAMP, TENT, BEACON, RINGS, distance, ringAt } from '../logic/world.js';
 import { ITEMS } from '../data/items.js';
+import { RES } from './view.js';
 
 // Past this distance from camp the forest is too thick to walk through
 const WALL_RADIUS = RINGS.deep + 50;
@@ -78,7 +79,8 @@ export function drawValley(scene, valley) {
 
 function drawGround(scene, rng) {
     //One 256px tile of grass, repeated across the whole world.
-    scene.add.tileSprite(0, 0, WORLD.width, WORLD.height, 'ground').setOrigin(0).setDepth(DEPTH.ground);
+    // It's drawn RES times bigger for sharpness (see BootScene), so the tile is shrunk back here.
+    scene.add.tileSprite(0, 0, WORLD.width, WORLD.height, 'ground').setOrigin(0).setDepth(DEPTH.ground).setTileScale(1 / RES);
 
     //Darker Patches over the deep woods.
     const shade = scene.add.graphics().setDepth(DEPTH.shade);

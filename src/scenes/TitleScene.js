@@ -5,6 +5,7 @@ import { makeRng, randRange, pick } from '../logic/rng.js';
 import { Darkness } from '../game/darkness.js';
 import { openPanel, isPanelOpen } from '../ui/overlay.js';
 import { setAmbience } from '../audio/sound.js';
+import { VIEW, RES, fitCamera } from '../game/view.js';
 
 // The title screen: the camp at night, the name of the game, and Continue or New game.
 // A new game tells the opening first, one paragraph at a time. Then the first morning begins.
@@ -31,6 +32,7 @@ export class TitleScene extends Phaser.Scene {
     }
 
     create() {
+        fitCamera(this);
         this.storage = browserStorage();
         this.saved = loadSave(this.storage);
         // 'menu' while you choose, 'opening' while the story is told, 'leaving' once the game starts.
@@ -63,8 +65,9 @@ export class TitleScene extends Phaser.Scene {
 
     // The camp at night: grass, trees all around, the tent, the fire, you, and the dark beacon far off.
     drawCamp() {
-        const { width, height } = this.scale;
-        this.add.tileSprite(0, 0, width, height, 'ground').setOrigin(0);
+        const { width, height } = VIEW;
+        // The grass tile is drawn RES times bigger for sharpness (see BootScene), so shrink it back.
+        this.add.tileSprite(0, 0, width, height, 'ground').setOrigin(0).setTileScale(1 / RES);
 
         // The same seed every time, so the title always looks the same.
         const rng = makeRng(7);

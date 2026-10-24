@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { MAX_DARKNESS } from '../logic/clock.js';
+import { screenCorner } from './view.js';
 
 // The night, laid over the valley: a dark sheet with soft holes cut out of it
 // wherever there is light (your lantern, the camp fire, and later torches).
@@ -18,9 +19,10 @@ export class Darkness {
         this.scene = scene;
         makeLampTexture(scene);
 
+        // displayWidth is how much of the world the camera shows, after its zoom.
         const cam = scene.cameras.main;
         this.sheet = scene.add
-            .renderTexture(0, 0, cam.width + MARGIN * 2, cam.height + MARGIN * 2)
+            .renderTexture(0, 0, cam.displayWidth + MARGIN * 2, cam.displayHeight + MARGIN * 2)
             .setOrigin(0)
             .setDepth(10000)
             .setVisible(false);
@@ -45,9 +47,9 @@ export class Darkness {
         this.grow(lights.length);
 
         // Line the sheet up with what the camera sees, plus the margin.
-        const cam = this.scene.cameras.main;
-        const left = cam.scrollX - MARGIN;
-        const top = cam.scrollY - MARGIN;
+        const corner = screenCorner(this.scene.cameras.main);
+        const left = corner.x - MARGIN;
+        const top = corner.y - MARGIN;
         this.sheet.setPosition(left, top);
 
         const night = Math.min(1, alpha / max);

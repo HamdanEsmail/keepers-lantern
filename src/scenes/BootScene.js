@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { skipTitle } from '../game/dev.js';
+import { VIEW, RES, fitCamera } from '../game/view.js';
 
 // Every picture in public/art, and the size in pixels to draw it at.
 const ART = {
@@ -20,19 +21,28 @@ export class BootScene extends Phaser.Scene {
         super('boot');
     }
     preload() {
+        fitCamera(this);
         // A thin loading bar that fills up while the art downlaods
-        const { width, height } = this.scale;
+        const { width, height } = VIEW;
         this.add.rectangle(width / 2, height / 2, 400, 6).setStrokeStyle(1, 0xf3e7c9, 0.4);
         const bar = this.add.rectangle(width / 2 - 200, height / 2, 400, 6, 0xffcf7a).setOrigin(0, 0.5);
         bar.scaleX = 0;
         this.load.on('progress', (amount) => {
             bar.scaleX = amount;
         });
+        // Each picture is drawn RES times bigger than it shows, so it's still sharp once the camera zooms in.
         for (const [key, size] of Object.entries(ART)) {
-            this.load.svg(key, `art/${key}.svg`, { width: size, height: size });
+            this.load.svg(key, `art/${key}.svg`, { width: size * RES, height: size * RES });
         }
     }
     create() {
+        // Give every picture its normal size back. The ground is the exception:
+        // it's a repeating tile, so it's shrunk with setTileScale where it's used instead.
+        if (RES !== 1) {
+            for (const key of Object.keys(ART)) {
+                if (key !== 'ground') shrinkFrame(this.textures.getFrame(key), RES);
+            }
+        }
         this.makeLightTexture();
         this.makeVignetteTexture();
         // On to the title screen. While testing, an option in the address skips it (see dev.js).
@@ -51,7 +61,7 @@ export class BootScene extends Phaser.Scene {
 
     // Clear in the middle and darker towards the corners, like the painted mockup.
     makeVignetteTexture() {
-        const { width, height } = this.scale;
+        const { width, height } = VIEW;
         const texture = this.textures.createCanvas('vignette', width, height);
         const ctx = texture.getContext();
         const cx = width / 2;
@@ -63,4 +73,14 @@ export class BootScene extends Phaser.Scene {
         ctx.fillRect(0, 0, width, height);
         texture.refresh();
     }
+}
+
+// Make a picture that was drawn `by` times too big show at its normal size, without losing detail.
+// setSize makes the frame (and so the sprite, its origin and its physics body) the normal size,
+// but it also points the frame at just the top-left corner of the image. The last two lines
+// point it back at the whole image, so the full picture is squeezed into the smaller frame.
+function shrinkFrame(frame, by) {
+    frame.setSize(frame.cutWidth / by, frame.cutHeight / by);
+    frame.u1 = 1;
+    frame.v1 = 1;
 }

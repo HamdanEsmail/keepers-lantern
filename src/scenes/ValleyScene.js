@@ -53,6 +53,7 @@ import {
 } from '../logic/lens.js';
 import { setupDev, readDevInput, reportDev, devWeather, devSeed } from '../game/dev.js';
 import { playSfx, setAmbience } from '../audio/sound.js';
+import { fitCamera, fixedCorner } from '../game/view.js';
 
 // How close you must be to gather something, and how long to hold E.
 // (The hold time is in logic/tools.js, since the axe changes it.)
@@ -101,6 +102,8 @@ export class ValleyScene extends Phaser.Scene {
     }
 
     create() {
+        // Zoom first: the darkness and the sky size themselves to what the camera shows.
+        fitCamera(this);
         // Every run gets its own valley: the forest has moved overnight.
         const valley = generateValley(this.save.baseSeed + this.save.run, {
             lensDelivered: this.save.lensDelivered,
@@ -169,7 +172,8 @@ export class ValleyScene extends Phaser.Scene {
         camera.startFollow(this.player, true, 0.1, 0.1);
 
         // Darker corners, fixed to the screen instead of the world.
-        this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(9500);
+        const corner = fixedCorner(camera);
+        this.add.image(corner.x, corner.y, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(9500);
 
         // The night goes on top of everything in the valley.
         this.darkness = new Darkness(this);

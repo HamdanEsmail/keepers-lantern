@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { iconFor } from '../data/items.js';
 import { LENS_COUNT } from '../logic/lens.js';
+import { fitCamera } from '../game/view.js';
 
 // The heads-up display: day and meters top left, pack top right,
 // the E prompt and short messages ("toasts") at the bottom.
@@ -24,6 +25,7 @@ export class HudScene extends Phaser.Scene {
     }
 
     create() {
+        fitCamera(this);
         this.drawDayPanel();
         this.packSlots = [];
         this.packKey = '';

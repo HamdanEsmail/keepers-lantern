@@ -6,12 +6,14 @@ import { ValleyScene } from './scenes/ValleyScene.js';
 import { HudScene } from './scenes/HudScene.js';
 import { EndingScene } from './scenes/EndingScene.js';
 import { initAudio, toggleMute } from './audio/sound.js';
+import { VIEW, RES } from './game/view.js';
 
 const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
-    width: 1280,
-    height: 720,
+    // Drawn RES times bigger than the 1280×720 layout, so it stays sharp on big screens (see game/view.js).
+    width: VIEW.width * RES,
+    height: VIEW.height * RES,
     backgroundColor: '#24372d',
     scale: {
         mode: Phaser.Scale.FIT,

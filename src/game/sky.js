@@ -2,6 +2,8 @@
 // so after dark you only see them inside your light.
 // What the weather does to you is in logic/weather.js; this file only draws it.
 
+import { fixedCorner } from './view.js';
+
 // Just below the vignette (9500) and the darkness (10000).
 const DEPTH = 9400;
 
@@ -18,15 +20,18 @@ export class Sky {
     constructor(scene, weather) {
         this.scene = scene;
         this.time = 0;
+        // How much of the world the screen shows, and where its top-left corner goes (see game/view.js).
         const cam = scene.cameras.main;
-        this.width = cam.width;
-        this.height = cam.height;
+        this.width = cam.displayWidth;
+        this.height = cam.displayHeight;
+        this.corner = fixedCorner(cam);
+        const { x, y } = this.corner;
 
         if (weather.sky === 'rain') {
             // Fixed to the screen: rain falls past you wherever you go.
-            scene.add.rectangle(0, 0, cam.width, cam.height, RAIN_WASH, 0.2).setOrigin(0).setScrollFactor(0).setDepth(DEPTH);
-            this.rain = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH);
-            this.drops = Array.from({ length: DROPS }, () => this.newDrop(Math.random() * cam.height));
+            scene.add.rectangle(x, y, this.width, this.height, RAIN_WASH, 0.2).setOrigin(0).setScrollFactor(0).setDepth(DEPTH);
+            this.rain = scene.add.graphics({ x, y }).setScrollFactor(0).setDepth(DEPTH);
+            this.drops = Array.from({ length: DROPS }, () => this.newDrop(Math.random() * this.height));
         }
 
         if (weather.sky === 'fog') {
@@ -41,7 +46,7 @@ export class Sky {
 
     fogLayer(alpha) {
         return this.scene.add
-            .tileSprite(0, 0, this.width, this.height, 'fog')
+            .tileSprite(this.corner.x, this.corner.y, this.width, this.height, 'fog')
             .setOrigin(0)
             .setScrollFactor(0)
             .setDepth(DEPTH)

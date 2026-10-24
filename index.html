@@ -5,8 +5,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>The Keeper's Lantern</title>
         <style>
-            html, body { margin: 0; height: 100%; background: #24372d; }
-            #game { display: flex; align-items: center; justify-content: center; height: 100%; }
+            html, body { margin: 0; height: 100%; overflow: hidden; background: #24372d; }
+            /* Phaser centres the game itself (autoCenter in main.js), so this only needs to fill the window. */
+            #game { height: 100%; }
+            #game canvas { display: block; }
         </style>
     </head>
     <body>

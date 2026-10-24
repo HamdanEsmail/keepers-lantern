@@ -3,6 +3,7 @@ import { ENDING } from '../data/story.js';
 import { statLines } from '../logic/stats.js';
 import { showPage } from '../ui/journal.js';
 import { isPanelOpen } from '../ui/overlay.js';
+import { VIEW, fitCamera } from '../game/view.js';
 
 // The end of the game. It runs on top of the valley, where the beacon has just been lit.
 // First the last page, found inside the beacon. Then the night closes in, the ending is told
@@ -23,6 +24,7 @@ export class EndingScene extends Phaser.Scene {
 
     // data.save is the finished game, already saved by the valley.
     create(data) {
+        fitCamera(this);
         this.save = data.save;
         // 'page' while the last page is open, 'lines' while the ending is told,
         // 'credits' at the end, and 'leaving' once you've gone back to the title.
@@ -30,7 +32,7 @@ export class EndingScene extends Phaser.Scene {
         this.panelClosedAt = 0;
 
         // A curtain of night over the valley. It closes once the last page has been read.
-        const { width, height } = this.scale;
+        const { width, height } = VIEW;
         this.curtain = this.add.rectangle(0, 0, width, height, 0x0a120e).setOrigin(0).setAlpha(0);
 
         const style = this.style(28, { align: 'center', lineSpacing: 10, wordWrap: { width: 820 } });
