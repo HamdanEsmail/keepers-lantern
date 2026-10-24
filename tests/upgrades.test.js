@@ -33,7 +33,7 @@ it('pays for a torch', () => {
 
 it('has every upgrade the game already knows how to use', () => {
     const ids = UPGRADES.map((u) => u.id).sort();
-    expect(ids).toEqual(['axe', 'coat', 'cooking-fire', 'fishing-line', 'lantern', 'pack']);
+    expect(ids).toEqual(['axe', 'coat', 'compass', 'cooking-fire', 'fishing-line', 'lantern', 'pack']);
     for (const u of UPGRADES) {
         expect(u.name && u.text && u.built).toBeTruthy();
     }

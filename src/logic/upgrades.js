@@ -48,6 +48,13 @@ export const UPGRADES = [
         built: 'The glass is clean. The light reaches further.',
         cost: { stone: 3, amber: 2 },
     },
+    {
+        id: 'compass',
+        name: 'Compass',
+        text: 'Points to the nearest lens piece, and then to the beacon.',
+        built: 'The needle swings, then settles. It points to the nearest piece of the lens.',
+        cost: { amber: 3, mushroom: 2 },
+    },
 ];
 
 // A torch is made at camp too, as many as you can pay for.
