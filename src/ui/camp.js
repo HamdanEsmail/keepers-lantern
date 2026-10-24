@@ -7,6 +7,7 @@ import { unpack, makeTorch, takeOut, upgradeRows, costRows, countItems, describe
 import { capacity } from '../logic/pack.js';
 import { statLines } from '../logic/stats.js';
 import { iconFor, labelFor } from '../data/items.js';
+import { playSfx } from '../audio/sound.js';
 
 // Opens the camp. Returns a Promise of { action, save, pack }:
 //   action:     'sleep' to end the day safely, or 'close' to go back outside
@@ -47,6 +48,7 @@ export async function openCamp(save, pack) {
             if (result) {
                 save = { ...save, stash: result.stash, upgrades: result.owned };
                 note = upgradeById(id).built;
+                playSfx('buy');
             }
         } else if (action === 'torch') {
             const result = makeTorch(save.stash, pack, cap);
@@ -54,6 +56,7 @@ export async function openCamp(save, pack) {
                 save = { ...save, stash: result.stash };
                 pack = result.pack;
                 note = "A torch, bound and ready. It's in your pack.";
+                playSfx('buy');
             } else {
                 note = 'Your pack is full.';
             }
@@ -63,6 +66,7 @@ export async function openCamp(save, pack) {
                 save = { ...save, stash: result.stash };
                 pack = result.pack;
                 note = `${labelFor(id)} packed.`;
+                playSfx('pickup');
             } else {
                 note = 'Your pack is full.';
             }

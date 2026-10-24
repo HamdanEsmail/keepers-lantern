@@ -4,6 +4,7 @@ import { newSave, loadSave, writeSave, clearSave, browserStorage } from '../logi
 import { makeRng, randRange, pick } from '../logic/rng.js';
 import { Darkness } from '../game/darkness.js';
 import { openPanel, isPanelOpen } from '../ui/overlay.js';
+import { setAmbience } from '../audio/sound.js';
 
 // The title screen: the camp at night, the name of the game, and Continue or New game.
 // A new game tells the opening first, one paragraph at a time. Then the first morning begins.
@@ -22,7 +23,7 @@ const TOP = 10001;
 // Where the camp fire is on the title screen.
 const FIRE_AT = { x: 640, y: 540 };
 
-const CONTROLS = 'WASD or arrows: walk  ·  E: use  ·  Shift: run  ·  Space: flare  ·  T: torch  ·  F: eat  ·  J: journal';
+const CONTROLS = 'WASD or arrows: walk  ·  E: use  ·  Shift: run  ·  Space: flare  ·  T: torch  ·  F: eat  ·  J: journal  ·  M: sound';
 
 export class TitleScene extends Phaser.Scene {
     constructor() {
@@ -44,6 +45,8 @@ export class TitleScene extends Phaser.Scene {
         this.drawTitle();
         this.makeMenu();
         this.listen();
+        // Night wind and the crackle of the camp fire (once you've pressed a key; see main.js).
+        setAmbience({ phase: 'night', fire: 0.8, rain: false });
 
         this.cameras.main.fadeIn(900, ...NIGHT);
     }

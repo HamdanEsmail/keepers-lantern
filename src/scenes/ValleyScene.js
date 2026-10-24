@@ -52,6 +52,7 @@ import {
     finishGame,
 } from '../logic/lens.js';
 import { setupDev, readDevInput, reportDev, devWeather, devSeed } from '../game/dev.js';
+import { playSfx, setAmbience } from '../audio/sound.js';
 
 // How close you must be to gather something, and how long to hold E.
 // (The hold time is in logic/tools.js, since the axe changes it.)
@@ -82,6 +83,12 @@ const DIM_AT = 0.25;
 // The colour the screen fades to between runs: the night colour.
 const FADE = [10, 18, 14];
 const STILL = { x: 0, y: 0 };
+
+// Seconds between footsteps, walking and running.
+const STEP_EVERY = 0.35;
+const RUN_STEP_EVERY = 0.26;
+// The camp fire can be heard from this far away, louder as you come closer.
+const FIRE_HEARD = 520;
 
 export class ValleyScene extends Phaser.Scene {
     constructor() {
@@ -134,6 +141,9 @@ export class ValleyScene extends Phaser.Scene {
         this.summary = { ...newRunSummary(), moon: this.weather.moon };
         this.milestoneClock = 0;
         this.rushed = false;
+        // Sound: time since the last footstep, and until the next howl in the night.
+        this.stepClock = 0;
+        this.howlClock = 0;
 
         // Start beside the fire, not in it: the fire is solid.
         this.physics.world.setBounds(0, 0, WORLD.width, WORLD.height);
@@ -228,6 +238,7 @@ export class ValleyScene extends Phaser.Scene {
         const sprinting = moving && (this.dev?.shift ?? this.keys.SHIFT.isDown);
         updatePlayer(this.player, dir, speedFor({ inStream: this.inStream(), sprinting }));
         this.critters.update(dt, { px: this.player.x, py: this.player.y, sprinting, phase });
+        this.updateSound(dt, phase, moving, sprinting);
 
         // T plants a torch from your pack.
         const plantPressed = this.dev?.tPressed || Phaser.Input.Keyboard.JustDown(this.keys.T);
@@ -317,6 +328,10 @@ export class ValleyScene extends Phaser.Scene {
             const count = (ring === 'deep' || ring === 'outside' ? 3 : 2) + this.weather.wolves;
             this.wolves.spawn(Math.max(1, count), this.player);
             if (this.pack.includes('torch')) this.toast('Press T to plant a torch.');
+            // They let you know they're out there: one howl, then another answers.
+            playSfx('howl');
+            this.time.delayedCall(900, () => playSfx('howl'));
+            this.howlClock = 20 + Math.random() * 20;
         }
         if (phase === 'night') {
             this.summary.sawNight = true;
@@ -376,7 +391,10 @@ export class ValleyScene extends Phaser.Scene {
         this.persist();
 
         const camera = this.cameras.main;
-        if (reason === 'caught') camera.shake(300, 0.008);
+        if (reason === 'caught') {
+            camera.shake(300, 0.008);
+            playSfx('caught');
+        }
         // Falling asleep is slower than being caught.
         camera.fadeOut(reason === 'slept' ? 2600 : 1800, ...FADE);
         camera.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, async () => {
@@ -392,6 +410,32 @@ export class ValleyScene extends Phaser.Scene {
 
     inStream() {
         return inStream(this.valley.stream, this.player.x, this.player.y);
+    }
+
+    // Footsteps while you move (a splash in the stream), the wind, the rain and the fire,
+    // and now and then a howl while the wolves are out.
+    updateSound(dt, phase, moving, sprinting) {
+        if (moving) {
+            this.stepClock += dt;
+            if (this.stepClock >= (sprinting ? RUN_STEP_EVERY : STEP_EVERY)) {
+                this.stepClock = 0;
+                playSfx(this.inStream() ? 'wade' : 'step');
+            }
+        } else {
+            // So the first step sounds just after you start walking.
+            this.stepClock = STEP_EVERY - 0.12;
+        }
+
+        const fromFire = distance(this.player.x, this.player.y, CAMP.x, CAMP.y);
+        setAmbience({ phase, fire: 1 - fromFire / FIRE_HEARD, rain: this.weather.sky === 'rain' });
+
+        if (this.wolves.active && phase === 'night') {
+            this.howlClock -= dt;
+            if (this.howlClock <= 0) {
+                playSfx('howl');
+                this.howlClock = 25 + Math.random() * 25;
+            }
+        }
     }
 
     // The lantern shrinks as its fuel runs down, and fog swallows some of it. The flames flicker a little.
@@ -447,6 +491,7 @@ export class ValleyScene extends Phaser.Scene {
             ease: 'Sine.easeInOut',
         });
         this.torchViews.set(torch, sprite);
+        playSfx('torch');
         if (this.phase === 'dusk' || this.phase === 'night') this.summary.torches += 1;
         if (this.save.stats.runs < 3) this.toast('Stand in its light: the wolves keep back and your lantern rests.');
     }
@@ -505,6 +550,7 @@ export class ValleyScene extends Phaser.Scene {
             }
             this.meters = eat(this.meters, node.kind, upgrades);
             this.summary.eaten += 1;
+            playSfx('eat');
             this.removeNode(node, `+${foodValue(node.kind, upgrades)} Food`);
             return;
         }
@@ -525,6 +571,7 @@ export class ValleyScene extends Phaser.Scene {
         }
         this.summary.gathered += added;
         if (this.pack.length >= cap) this.summary.packFilled = true;
+        playSfx('pickup');
         this.removeNode(node, `+${added} ${item.label}`);
     }
 
@@ -543,6 +590,7 @@ export class ValleyScene extends Phaser.Scene {
                 const result = cookAll(this.pack);
                 this.pack = result.pack;
                 this.summary.cooked += result.cooked;
+                playSfx('pickup');
                 this.floatText(CAMP.x, CAMP.y - 40, `${result.cooked} ${result.cooked === 1 ? 'meal' : 'meals'}`);
                 if (this.save.stats.runs < 3) this.toast('Press F to eat from your pack.');
             },
@@ -596,6 +644,7 @@ export class ValleyScene extends Phaser.Scene {
             return;
         }
         this.pack = result.pack;
+        playSfx('pickup');
         this.removeLens(lens);
         this.floatText(lens.x, lens.y - 30, 'A piece of the lens');
         // Each piece was found with a page of the journal. The first time, you read it.
@@ -634,6 +683,7 @@ export class ValleyScene extends Phaser.Scene {
         if (!found.isNew) return;
         this.save = found.save;
         this.persist();
+        playSfx('page');
         await showPage(id);
         this.input.keyboard.resetKeys();
         if (this.save.pagesFound.length === 1) this.toast('Press J to read the journal again.');
@@ -666,7 +716,10 @@ export class ValleyScene extends Phaser.Scene {
         const result = setLenses(this.save, this.pack);
         this.save = result.save;
         this.pack = result.pack;
-        if (result.set) this.persist();
+        if (result.set) {
+            this.persist();
+            playSfx('pickup');
+        }
         if (result.missing > 0) {
             this.toast(beaconMessage(result.set, result.missing));
             return;
@@ -685,6 +738,9 @@ export class ValleyScene extends Phaser.Scene {
         this.arrow.setVisible(false);
 
         this.cameras.main.flash(1200, 255, 244, 214);
+        playSfx('beacon');
+        // The wind drops.
+        setAmbience({ phase: 'day', fire: 0, rain: false });
         this.lightBeacon(1500);
         for (const tree of this.view.trees) {
             this.tweens.killTweensOf(tree);
@@ -775,6 +831,7 @@ export class ValleyScene extends Phaser.Scene {
             this.meters = { ...this.meters, food: Math.min(100, this.meters.food + result.food) };
             this.summary.eaten += 1;
         }
+        playSfx(result.take.length ? 'pickup' : 'eat');
         this.summary.gathered += result.take.length;
         if (this.pack.length >= cap) this.summary.packFilled = true;
         if (!this.searched) {
@@ -816,6 +873,7 @@ export class ValleyScene extends Phaser.Scene {
         this.meters = result.meters;
         this.pack = result.pack;
         this.summary.eaten += 1;
+        playSfx('eat');
         this.floatText(this.player.x, this.player.y - 50, `+${result.value} Food`);
     }
 
