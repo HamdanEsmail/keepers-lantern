@@ -38,9 +38,19 @@ import { Sky } from '../game/sky.js';
 import { Critters } from '../game/critters.js';
 import { LandmarkView } from '../game/landmarks.js';
 import { ITEMS } from '../data/items.js';
-import { WORLD, CAMP, TENT, distance, ringAt } from '../logic/world.js';
+import { WORLD, CAMP, TENT, BEACON, distance, ringAt } from '../logic/world.js';
 import { isPanelOpen } from '../ui/overlay.js';
 import { openCamp, showMorning } from '../ui/camp.js';
+import { showPage, openJournal } from '../ui/journal.js';
+import {
+    LENS_COUNT,
+    missingLenses,
+    setLenses,
+    beaconMessage,
+    compassTarget,
+    findPage,
+    finishGame,
+} from '../logic/lens.js';
 import { setupDev, readDevInput, reportDev, devWeather, devSeed } from '../game/dev.js';
 
 // How close you must be to gather something, and how long to hold E.
@@ -52,6 +62,10 @@ const FULL_ENOUGH = 95;
 
 // The camp fire always lights this far, however dark it gets.
 const CAMP_LIGHT = 260;
+
+// How close you must be to use the beacon, and how far its light reaches once it's lit.
+const BEACON_REACH = 90;
+const BEACON_LIGHT = 560;
 
 // What the valley tells you when the light changes.
 const PHASE_TOASTS = {
@@ -126,13 +140,18 @@ export class ValleyScene extends Phaser.Scene {
         this.player = createPlayer(this, CAMP.x + 50, CAMP.y + 40);
         this.physics.add.collider(this.player, this.view.solids);
 
-        this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,E,SHIFT,SPACE,T,F');
+        this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,E,SHIFT,SPACE,T,F,J');
 
         this.interactions = new Interactions(this);
         for (const node of this.valley.nodes) this.addNode(node);
         this.addFire();
         this.addTent();
         if (this.landmark) this.addLandmark();
+        // The lens pieces still out here, the journal pages, and the beacon.
+        this.lensesLeft = [...this.valley.lenses];
+        for (const lens of this.valley.lenses) this.addLens(lens);
+        for (const page of this.valley.pages) this.addPage(page);
+        this.addBeacon();
 
         const camera = this.cameras.main;
         camera.setBounds(0, 0, WORLD.width, WORLD.height);
@@ -147,6 +166,14 @@ export class ValleyScene extends Phaser.Scene {
         this.lightR = lightRadius(this.meters.fuel, this.save.upgrades);
         this.wolves = new WolfPack(this);
         this.sky = new Sky(this, this.weather);
+
+        // The compass arrow, above the darkness so it shows at night. Hidden until you have the compass.
+        this.arrow = this.add.image(0, 0, 'arrow').setDepth(10003).setVisible(false);
+        // The forest is never quite still.
+        this.swayTrees();
+        // How brightly the beacon burns: 0 while it's dark. Once you've relit it, it stays lit.
+        this.beaconLight = 0;
+        if (this.save.finished) this.lightBeacon(0);
 
         // Wake up slowly instead of popping in.
         camera.fadeIn(900, ...FADE);
@@ -207,6 +234,8 @@ export class ValleyScene extends Phaser.Scene {
         if (plantPressed) this.plantTorchHere();
         // F eats from the pack.
         if (this.dev?.fPressed || Phaser.Input.Keyboard.JustDown(this.keys.F)) this.eatSnack();
+        // J opens the journal.
+        if (Phaser.Input.Keyboard.JustDown(this.keys.J)) this.openJournalHere();
         this.updateTorches();
         const sheltered = inTorchLight(this.torches, this.player.x, this.player.y, this.t);
         // The hollow tree and the boulder keep the rain off.
@@ -231,9 +260,12 @@ export class ValleyScene extends Phaser.Scene {
 
         const eDown = this.dev?.eDown ?? this.keys.E.isDown;
         const prompt = this.interactions.update(dt, eDown, this.player.x, this.player.y);
+        // Lighting the beacon ends the game right here (see relight), so nothing else moves this frame.
+        if (this.ending) return;
 
         this.sky.update(dt);
         this.updateLight();
+        this.updateCompass();
         this.updateNight(dt, phase);
         if (!this.ending && isSpent(this.meters)) this.endRun('spent');
 
@@ -254,7 +286,7 @@ export class ValleyScene extends Phaser.Scene {
             pack: this.pack,
             cap: capacity(upgrades),
             prompt,
-            lenses: this.save.lensDelivered.length,
+            lenses: LENS_COUNT - missingLenses(this.save.lensDelivered, this.pack),
             weather: weatherLabel(this.weather, this.phase),
         });
     }
@@ -382,6 +414,8 @@ export class ValleyScene extends Phaser.Scene {
             { x: this.player.x, y: this.player.y - 20, r: this.lightR * lanternFlicker, warm: 1 + this.flare },
             { x: CAMP.x, y: CAMP.y - 10, r: CAMP_LIGHT * fireFlicker, warm: 1 },
             ...torchLights,
+            // The beacon, once it's lit. beaconLight goes from 0 (dark) to 1.
+            { x: BEACON.x, y: BEACON.y - 100, r: BEACON_LIGHT * this.beaconLight, warm: 1 },
         ], { max: darkness, color: nightColor });
     }
 
@@ -539,6 +573,176 @@ export class ValleyScene extends Phaser.Scene {
         // Keys pressed while the panel was open shouldn't count once it closes. T would plant a torch.
         this.input.keyboard.resetKeys();
         if (result.action === 'sleep') this.endRun('slept');
+    }
+
+    // A lens piece: hold E to pick it up. It's only safe once you sleep with it, or set it in the beacon.
+    addLens(lens) {
+        this.interactions.add({
+            id: `lens-${lens.index}`,
+            x: lens.x,
+            y: lens.y,
+            radius: GATHER_REACH,
+            hold: 1,
+            prompt: 'Take the lens piece',
+            use: () => this.takeLens(lens),
+        });
+    }
+
+    takeLens(lens) {
+        const item = `lens-${lens.index}`;
+        const result = addToPack(this.pack, item, capacity(this.save.upgrades));
+        if (!result.added) {
+            this.toast('Your pack is full.');
+            return;
+        }
+        this.pack = result.pack;
+        this.removeLens(lens);
+        this.floatText(lens.x, lens.y - 30, 'A piece of the lens');
+        // Each piece was found with a page of the journal. The first time, you read it.
+        this.readPage(item);
+    }
+
+    // Take a lens piece out of the valley: no more E on it, the compass forgets it, and the picture goes.
+    removeLens(lens) {
+        this.interactions.remove(`lens-${lens.index}`);
+        this.lensesLeft = this.lensesLeft.filter((l) => l !== lens);
+        this.pop(this.view.lensSprites.get(lens.index));
+        this.view.lensSprites.delete(lens.index);
+    }
+
+    // A journal page lying in the valley: E picks it up and reads it.
+    addPage(page) {
+        this.interactions.add({
+            id: page.id,
+            x: page.x,
+            y: page.y,
+            radius: GATHER_REACH,
+            hold: 0,
+            prompt: 'Pick up the page',
+            use: () => {
+                this.interactions.remove(page.id);
+                this.pop(this.view.pageSprites.get(page.id));
+                this.view.pageSprites.delete(page.id);
+                this.readPage(page.id);
+            },
+        });
+    }
+
+    // A page you've never read before goes in the journal, is saved, and opens.
+    async readPage(id) {
+        const found = findPage(this.save, id);
+        if (!found.isNew) return;
+        this.save = found.save;
+        this.persist();
+        await showPage(id);
+        this.input.keyboard.resetKeys();
+        if (this.save.pagesFound.length === 1) this.toast('Press J to read the journal again.');
+    }
+
+    // J: the journal. The valley waits while it's open, the same as for the camp.
+    async openJournalHere() {
+        if (this.ending || isPanelOpen()) return;
+        await openJournal(this.save.pagesFound);
+        this.input.keyboard.resetKeys();
+    }
+
+    // The beacon: E sets the lens pieces you carry. With all three, hold E to light it.
+    addBeacon() {
+        const ready = () => missingLenses(this.save.lensDelivered, this.pack) === 0;
+        this.interactions.add({
+            id: 'beacon',
+            x: BEACON.x,
+            y: BEACON.y,
+            radius: BEACON_REACH,
+            hold: () => (ready() ? 1.5 : 0),
+            prompt: () => (ready() ? 'Light the beacon' : 'Look at the beacon'),
+            // Once it's lit, there's nothing more to do here.
+            isActive: () => !this.save.finished,
+            use: () => this.useBeacon(),
+        });
+    }
+
+    useBeacon() {
+        const result = setLenses(this.save, this.pack);
+        this.save = result.save;
+        this.pack = result.pack;
+        if (result.set) this.persist();
+        if (result.missing > 0) {
+            this.toast(beaconMessage(result.set, result.missing));
+            return;
+        }
+        this.relight();
+    }
+
+    // All three pieces are in. The beacon burns again, the forest goes still, and the wolves lie down.
+    relight() {
+        this.ending = true;
+        this.save = finishGame(this.save, this.pack, this.summary);
+        this.pack = [];
+        this.persist();
+        // The HUD and the compass aren't needed any more.
+        this.scene.sleep('hud');
+        this.arrow.setVisible(false);
+
+        this.cameras.main.flash(1200, 255, 244, 214);
+        this.lightBeacon(1500);
+        for (const tree of this.view.trees) {
+            this.tweens.killTweensOf(tree);
+            this.tweens.add({ targets: tree, angle: 0, duration: 2000, ease: 'Sine.easeOut' });
+        }
+        this.wolves.lieDown(this.player);
+
+        // A few moments to watch it. Then the last page, and the end (see EndingScene).
+        this.time.delayedCall(4500, () => this.scene.launch('ending', { save: this.save }));
+    }
+
+    // The lit beacon fades in over the dark one, with a glow, and its light spreads into the night.
+    //   duration: how long that takes, in milliseconds (0 for straight away)
+    lightBeacon(duration) {
+        const lit = this.add.image(BEACON.x, BEACON.y, 'beacon-lit').setOrigin(0.5, 0.87).setDepth(BEACON.y + 1);
+        const glow = this.add.image(BEACON.x, BEACON.y - 110, 'light')
+            .setTint(0xffe2a0)
+            .setBlendMode('ADD')
+            .setScale(3)
+            .setDepth(9000);
+        lit.setAlpha(0);
+        glow.setAlpha(0);
+        this.tweens.add({ targets: lit, alpha: 1, duration });
+        this.tweens.add({ targets: glow, alpha: 0.45, duration });
+        this.tweens.add({ targets: this, beaconLight: 1, duration });
+    }
+
+    // The forest is never quite still: every tree sways a little, each at its own pace.
+    swayTrees() {
+        for (const tree of this.view.trees) {
+            this.tweens.add({
+                targets: tree,
+                angle: { from: -1.5, to: 1.5 },
+                // One way takes 1.5 to 2.5 seconds, so a whole sway takes 3 to 5.
+                duration: Phaser.Math.Between(1500, 2500),
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut',
+            });
+        }
+    }
+
+    // With the compass, an arrow beside you points to the nearest lens piece, or to the beacon.
+    updateCompass() {
+        const show = this.save.upgrades.includes('compass');
+        this.arrow.setVisible(show);
+        if (!show) return;
+        const { x, y } = this.player;
+        const target = compassTarget(this.lensesLeft, x, y);
+        const angle = Phaser.Math.Angle.Between(x, y, target.x, target.y);
+        // 40 px out from your chest, turned to face the way to go.
+        this.arrow.setPosition(x + Math.cos(angle) * 40, y - 20 + Math.sin(angle) * 40).setRotation(angle);
+    }
+
+    // A lens piece or a page leaves the valley with the same little pop as gathering.
+    pop(sprite) {
+        if (!sprite) return;
+        this.tweens.add({ targets: sprite, scale: 1.3, alpha: 0, duration: 250, onComplete: () => sprite.destroy() });
     }
 
     // The landmark: hold E to search it for what's inside.

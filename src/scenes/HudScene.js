@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { iconFor } from '../data/items.js';
+import { LENS_COUNT } from '../logic/lens.js';
 
 // The heads-up display: day and meters top left, pack top right,
 // the E prompt and short messages ("toasts") at the bottom.
@@ -57,7 +58,7 @@ export class HudScene extends Phaser.Scene {
     drawDayPanel() {
         const g = this.add.graphics();
         g.fillStyle(PANEL, 0.6);
-        g.fillRoundedRect(16, 16, 290, 124, 12);
+        g.fillRoundedRect(16, 16, 290, 144, 12);
 
         this.dayText = this.add.text(32, 26, '', this.textStyle(22));
         // Today's weather, small, at the other end of the same line.
@@ -69,11 +70,16 @@ export class HudScene extends Phaser.Scene {
             const bar = this.add.rectangle(110, y, 180, 9, m.color).setOrigin(0, 0.5);
             return { ...m, back, bar };
         });
+
+        // How many lens pieces you have, and a reminder of the journal.
+        this.lensText = this.add.text(32, 129, '', this.textStyle(14, { color: '#ffcf7a' }));
+        this.add.text(290, 129, 'J · Journal', this.textStyle(14, { color: '#cdbf9f' })).setOrigin(1, 0);
     }
 
     onHud(state) {
         this.dayText.setText(`Day ${state.day} · ${PHASE_LABEL[state.phase] ?? ''}`);
         this.weatherText.setText(state.weather ?? '');
+        this.lensText.setText(`Lens pieces: ${state.lenses}/${LENS_COUNT}`);
 
         for (const b of this.bars) {
             const value = state.meters ? state.meters[b.key] : null;

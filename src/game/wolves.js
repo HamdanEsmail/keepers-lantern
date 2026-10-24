@@ -13,6 +13,8 @@ const EYE_HUNTING = 0xffa060;
 // A faint outline of each wolf is drawn over the darkness, so you can make out their shapes.
 const GHOST_ALPHA = 0.2;
 const GHOST_TINT = 0x8a9aa8;
+// How far from you the wolves lie down when the beacon is lit.
+const LIE_DIST = 280;
 
 export class WolfPack {
     constructor(scene) {
@@ -107,6 +109,20 @@ export class WolfPack {
     // Where each wolf is, for testing.
     distances() {
         return this.wolves.map((w) => Math.round(w.dist));
+    }
+
+    // The ending: the wolves come to the edge of the light, lie down, and stay there.
+    // By day there are none out, so three come out of the trees for it.
+    lieDown(player) {
+        if (!this.active) this.spawn(3, player);
+        for (const w of this.wolves) w.dist = LIE_DIST;
+        this.place(player, 0, { dim: false, lightRadius: 0 });
+        for (const w of this.wolves) {
+            w.sprite.setTexture('wolf-lying').setAngle(0).setAlpha(0);
+            w.ghost.setVisible(false);
+            w.eye.setVisible(false);
+            this.scene.tweens.add({ targets: w.sprite, alpha: 1, delay: 600, duration: 1600 });
+        }
     }
 
     clear() {

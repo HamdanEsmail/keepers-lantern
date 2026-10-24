@@ -21,9 +21,12 @@ export function drawValley(scene, valley) {
     // Everything solid goes in here, so one collider can stop the player on all of it
     const solids = scene.physics.add.staticGroup();
 
+    // The trees inside the valley, kept so they can sway (see ValleyScene).
+    const trees = [];
     for (const t of valley.trees) {
         const tree = addTree(scene, solids, t.x, t.y, t.r, t.variant);
         if (ringAt(t.x, t.y) === 'deep') tree.setTint(DEEP_TINT);
+        trees.push(tree);
     }
     addWallTrees(scene, solids, rng);
 
@@ -69,7 +72,7 @@ export function drawValley(scene, valley) {
     for (const p of valley.pages) {
         pageSprites.set(p.id, addThing(scene, p.x, p.y, 'page'));
     }
-    return { solids, nodeSprites, lensSprites, pageSprites, beacon};
+    return { solids, trees, nodeSprites, lensSprites, pageSprites, beacon };
 
 }
 

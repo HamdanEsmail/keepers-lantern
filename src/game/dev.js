@@ -16,6 +16,7 @@
 // Keys:
 //   N             jump to dusk, or from dusk to night
 //   U             every upgrade, plus two torches in your pack
+//   L             every lens piece set in the beacon, to test the ending
 //
 // From the browser console you can also steer the game while it runs:
 //   document.documentElement.dataset.devWalk = '1,0'   walk right ('' to stop)
@@ -25,6 +26,7 @@
 //   document.documentElement.dataset.devT = '1'        press T once (plant a torch)
 //   document.documentElement.dataset.devF = '1'        press F once (eat from the pack)
 //   document.documentElement.dataset.devGrant = '1'    same as the U key
+//   document.documentElement.dataset.devLens = '1'     same as the L key
 //   document.documentElement.dataset.devTime = '0.75'  jump to that point in the day
 //   window.dispatchEvent(new Event('dev-step'))        run one second of game time,
 //                                                      even if the tab is hidden
@@ -71,6 +73,8 @@ export function setupDev(scene) {
     });
     // U gives you every upgrade and two torches, to test them without gathering for them first.
     scene.input.keyboard.on('keydown-U', () => grantAll(scene));
+    // L sets every lens piece in the beacon, to test the ending without finding them first.
+    scene.input.keyboard.on('keydown-L', () => giveLenses(scene));
 
     // Remember the last message, so a test can read it from devState.
     // Scene events outlive a restart, so stop listening when this valley ends.
@@ -127,6 +131,12 @@ function grantAll(scene) {
     scene.toast('Dev: every upgrade, and two torches.');
 }
 
+function giveLenses(scene) {
+    scene.save = { ...scene.save, lensDelivered: [0, 1, 2] };
+    for (const lens of scene.lensesLeft) scene.removeLens(lens);
+    scene.toast('Dev: every lens piece is in the beacon.');
+}
+
 // Called at the start of every frame: fake keys from the console, if any.
 export function readDevInput(scene) {
     const walk = html.dataset.devWalk;
@@ -148,6 +158,10 @@ export function readDevInput(scene) {
     if (html.dataset.devGrant) {
         delete html.dataset.devGrant;
         grantAll(scene);
+    }
+    if (html.dataset.devLens) {
+        delete html.dataset.devLens;
+        giveLenses(scene);
     }
 
     if (html.dataset.devTime) {
@@ -175,6 +189,11 @@ export function reportDev(scene) {
         torches: scene.torches.map((t) => ({ x: Math.round(t.x), y: Math.round(t.y), left: round(t.until - scene.t) })),
         upgrades: scene.save.upgrades,
         stash: scene.save.stash,
+        lensDelivered: scene.save.lensDelivered,
+        lensesLeft: scene.lensesLeft.map((l) => l.index),
+        pagesFound: scene.save.pagesFound,
+        finished: Boolean(scene.save.finished),
+        compass: scene.arrow.visible ? round(scene.arrow.rotation) : null,
         panel: isPanelOpen(),
         wolves: scene.wolves.distances(),
         run: scene.save.run,

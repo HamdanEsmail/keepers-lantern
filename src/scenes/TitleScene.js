@@ -22,7 +22,7 @@ const TOP = 10001;
 // Where the camp fire is on the title screen.
 const FIRE_AT = { x: 640, y: 540 };
 
-const CONTROLS = 'WASD or arrows: walk  ·  E: use  ·  Shift: run  ·  Space: flare  ·  T: torch  ·  F: eat';
+const CONTROLS = 'WASD or arrows: walk  ·  E: use  ·  Shift: run  ·  Space: flare  ·  T: torch  ·  F: eat  ·  J: journal';
 
 export class TitleScene extends Phaser.Scene {
     constructor() {
@@ -52,8 +52,10 @@ export class TitleScene extends Phaser.Scene {
         this.t += Math.min(delta / 1000, 0.1);
         // The fire's light flickers, like it does in the valley.
         const flicker = 1 + 0.03 * Math.sin(this.t * 7 + 1) + 0.015 * Math.sin(this.t * 17);
-        const fire = { x: FIRE_AT.x, y: FIRE_AT.y - 10, r: 300 * flicker, warm: 1 };
-        this.darkness.update(this.dark, [fire], { max: 0.7, color: MOON });
+        const lights = [{ x: FIRE_AT.x, y: FIRE_AT.y - 10, r: 300 * flicker, warm: 1 }];
+        // Once you've relit the beacon, its light shows here too.
+        if (this.saved?.finished) lights.push({ x: 1050, y: 150, r: 260, warm: 1 });
+        this.darkness.update(this.dark, lights, { max: 0.7, color: MOON });
     }
 
     // The camp at night: grass, trees all around, the tent, the fire, you, and the dark beacon far off.
@@ -74,7 +76,9 @@ export class TitleScene extends Phaser.Scene {
         }
 
         // Things further down the screen are nearer, so they're drawn on top (depth = y).
-        this.add.image(1050, 230, 'beacon-dark').setOrigin(0.5, 0.87).setScale(0.8).setDepth(230);
+        // Once you've relit it, it stays lit.
+        const beacon = this.saved?.finished ? 'beacon-lit' : 'beacon-dark';
+        this.add.image(1050, 230, beacon).setOrigin(0.5, 0.87).setScale(0.8).setDepth(230);
         this.add.image(FIRE_AT.x - 110, FIRE_AT.y - 20, 'tent').setOrigin(0.5, 0.88).setDepth(FIRE_AT.y - 20);
         this.add.image(FIRE_AT.x, FIRE_AT.y, 'fire').setOrigin(0.5, 0.8).setDepth(FIRE_AT.y);
         this.add.image(FIRE_AT.x + 64, FIRE_AT.y + 12, 'player').setOrigin(0.5, 0.9).setDepth(FIRE_AT.y + 12);

@@ -216,3 +216,27 @@
         columns: 1;
     }
 }
+
+/* The journal: the list of pages you've found, and the pages themselves (see ui/journal.js). */
+#panel .pages {
+    display: grid;
+    gap: 8px;
+}
+
+#panel .pages button {
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(63, 92, 75, 0.35);
+    color: #f3e7c9;
+    text-align: left;
+}
+
+#panel .pages button:hover {
+    background: rgba(63, 92, 75, 0.6);
+}
+
+#panel .journal-page p {
+    font-size: 18px;
+    font-style: italic;
+    line-height: 1.6;
+}
