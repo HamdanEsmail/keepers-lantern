@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="44" viewBox="0 0 1280 44" role="img" aria-label=""><title></title><style>
+text{font-family:Georgia, 'Times New Roman', serif}
+.sway{transform-box:fill-box;transform-origin:50% 92%;animation:sway 4s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-1.4deg)}to{transform:rotate(1.4deg)}}
+.flick{transform-box:fill-box;transform-origin:center;animation:flick .9s ease-in-out infinite alternate}
+.flick2{transform-box:fill-box;transform-origin:center;animation:flick 1.3s ease-in-out infinite alternate-reverse}
+@keyframes flick{from{transform:scale(.965)}to{transform:scale(1.035)}}
+.flame{transform-box:fill-box;transform-origin:50% 80%;animation:flame .32s ease-in-out infinite alternate}
+@keyframes flame{from{transform:scaleY(.95) scaleX(1.02)}to{transform:scaleY(1.05) scaleX(.98)}}
+.blink{transform-box:fill-box;transform-origin:center;animation:blink 5s infinite}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.ff{animation:ff 6s ease-in-out infinite}
+@keyframes ff{0%{opacity:0;transform:translate(0,0)}20%{opacity:1}50%{opacity:.25;transform:translate(14px,-18px)}80%{opacity:1;transform:translate(-8px,-30px)}100%{opacity:0;transform:translate(4px,-44px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style><defs><linearGradient id="line" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffcf7a" stop-opacity="0"/><stop offset=".5" stop-color="#ffcf7a" stop-opacity=".6"/><stop offset="1" stop-color="#ffcf7a" stop-opacity="0"/></linearGradient><filter id="glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="4"/></filter></defs><rect x="140" y="21" width="440" height="1.5" fill="url(#line)"/><rect x="700" y="21" width="440" height="1.5" fill="url(#line)"/><g transform="translate(640 22)"><circle r="16" fill="#ffcf7a" opacity=".35" filter="url(#glow)" class="flick"/><path d="M-5 -10 Q0 -17 5 -10" fill="none" stroke="#8a6a4a" stroke-width="1.6"/><path d="M-8 -7 L-6 -10 L6 -10 L8 -7 Z" fill="#8a6a4a"/><rect x="-6" y="-7" width="12" height="13" rx="2" fill="#ffcf7a"/><rect x="-2" y="-4" width="4" height="7" rx="2" fill="#fff1b8"/><rect x="-8" y="6" width="16" height="3.5" rx="1.5" fill="#8a6a4a"/></g><g fill="#ffcf7a" opacity=".55"><circle cx="604" cy="22" r="2"/><circle cx="676" cy="22" r="2"/></g></svg>
